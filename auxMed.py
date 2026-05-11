@@ -959,6 +959,9 @@ class App(QMainWindow):
                         continue
 
                     v_solicitacao = wait.until(EC.presence_of_element_located((By.ID, "acceptance_term_purchase_order"))).get_attribute("value")
+                                        # Remove .0 do final da solicitação (ex: 123456.0 → 123456)
+                    if v_solicitacao.endswith(".0"):
+                        v_solicitacao = v_solicitacao[:-2]
                     v_cnpj = driver.find_element(By.ID, "acceptance_term_supplier_identification_number").get_attribute("value")
                     v_valor = driver.find_element(By.ID, "acceptance_term_total_value").get_attribute("value")
                     v_org_cod = driver.find_element(By.ID, "acceptance_term_erp_purchasing_organization").get_attribute("value")[:4]
