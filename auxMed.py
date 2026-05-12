@@ -18,6 +18,7 @@ import threading
 
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
+from PyQt6.QtCore import QDate  # 999999: para seletor de data da metrica
 from PyQt6.QtGui import *
 from qt_material import apply_stylesheet
 
@@ -100,6 +101,35 @@ def salvar_erro_txt(id_v360, erro):
     horario = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     with open(ERROR_FILE, "a", encoding="utf-8") as f:
         f.write(f"[{horario}] ID: {id_v360} - {erro}\n")
+
+# 999999: salva metrica no csv para historico
+def salvar_metrica(id_v, status):
+    agora = datetime.now()
+    with open("metricas.csv", "a", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([agora.strftime("%d/%m/%Y"), agora.strftime("%H:%M:%S"), id_v, status])        
+
+# 999999: carrega metricas do csv com filtro de data
+def carregar_metricas(data_inicio=None, data_fim=None):
+    if not os.path.exists("metricas.csv"):
+        return {"sucesso": 0, "erro": 0, "total": 0}
+    sucesso = 0
+    erro = 0
+    with open("metricas.csv", "r", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if len(row) < 4:
+                continue
+            data_linha, hora, id_v, status = row
+            if data_inicio and data_fim:
+                if data_inicio <= data_linha <= data_fim:
+                    if status == "sucesso": sucesso += 1
+                    else: erro += 1
+            elif data_inicio:
+                if data_linha == data_inicio:
+                    if status == "sucesso": sucesso += 1
+                    else: erro += 1
+    return {"sucesso": sucesso, "erro": erro, "total": sucesso + erro}
 
 # --- INTERFACE ---
 
@@ -212,7 +242,12 @@ class App(QMainWindow):
         y = 0                            # ← ANTES: (screen.height() - 750) // 2
         self.setGeometry(x, y, window_width, window_height)
     # ═══════════════════════════════
+
         self.ids_processar = []
+        self.cont_sucesso = 0
+        self.cont_erro = 0
+        self.cont_total = 0
+
 
         # ═══ NOVO: Variáveis da barra de progresso ═══
         self.progress_bar = None
@@ -283,6 +318,89 @@ class App(QMainWindow):
         sidebar_layout.addWidget(btn_config)
         sidebar_layout.addSpacing(10)
         
+
+        # ═══ NOVO: Contador de métricas na Sidebar ═══
+        self.metrics_label = QLabel("📊 Sessão Atual | ✅ 0 | ❌ 0 | ⏳ 0")
+        self.metrics_label.setStyleSheet("""
+            QLabel {
+                color: #aaa;
+                font-size: 11px;
+                padding: 8px;
+                background-color: #252525;
+                border-radius: 6px;
+                text-align: center;
+            }
+        """)
+        self.metrics_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.metrics_label.setWordWrap(True)
+        sidebar_layout.addWidget(self.metrics_label)
+        # ════════════════════════════
+        
+        # 999999: Dropdown de metricas na Sidebar (so aparece na tab metricas)
+        self.metricas_sidebar_btn = QPushButton("📅 Hoje")
+        self.metricas_sidebar_btn.setFixedHeight(30)
+        self.metricas_sidebar_btn.setVisible(False)
+        self.metricas_sidebar_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #252525; color: white; padding: 5px 10px;
+                border: 1px solid #444; border-radius: 5px; font-size: 11px; text-align: left;
+            }
+            QPushButton:hover { border-color: #123b51; }
+            QPushButton::menu-indicator { subcontrol-position: right center; right: 5px; }
+        """)
+        
+        self.metricas_sidebar_menu = QMenu()
+        self.metricas_sidebar_menu.setStyleSheet("""
+            QMenu {
+                background-color: #2d2d2d; border: 1px solid #555;
+                border-radius: 4px; padding: 3px; min-width: 180px;
+            }
+            QMenu::item { padding: 8px 15px; color: #ccc; font-size: 12px; }
+            QMenu::item:selected { background-color: #123b51; color: white; border-radius: 3px; }
+        """)
+        
+        opcoes_sidebar = ["🔄 Sessão Atual", "📅 Hoje", "📅 Ontem", "📅 Selecionar Data", "📅 Período"]
+        for opcao in opcoes_sidebar:
+            action = self.metricas_sidebar_menu.addAction(opcao)
+            action.triggered.connect(lambda checked, o=opcao: self.selecionar_metrica(o))
+        
+        self.metricas_sidebar_btn.setMenu(self.metricas_sidebar_menu)
+        sidebar_layout.addWidget(self.metricas_sidebar_btn)         
+
+        # 999999: Datas na Sidebar (so na tab metricas)
+        self.metricas_data_widget = QWidget()
+        self.metricas_data_widget.setVisible(False)
+        self.metricas_data_widget.setStyleSheet("background-color: #252525; border-radius: 6px; padding: 8px;")
+        data_layout = QVBoxLayout(self.metricas_data_widget)
+        data_layout.setSpacing(5)
+        
+        self.metricas_data_inicio = QLineEdit()
+        self.metricas_data_inicio.setPlaceholderText("dd/mm/aaaa")
+        self.metricas_data_inicio.setText(datetime.now().strftime("%d/%m/%Y"))
+        self.metricas_data_inicio.setFixedHeight(28)
+        self.metricas_data_inicio.setStyleSheet("""
+            QLineEdit { background-color: #2d2d2d; color: white; padding: 4px; border: 1px solid #555; border-radius: 4px; font-size: 11px; }
+            QLineEdit:hover { border-color: #123b51; }
+        """)
+        self.metricas_data_inicio.returnPressed.connect(lambda: [self.formatar_data(self.metricas_data_inicio), self.atualizar_tab_metricas()])
+        data_layout.addWidget(QLabel("📅 Início:"))
+        data_layout.addWidget(self.metricas_data_inicio)
+        
+        self.metricas_data_fim = QLineEdit()
+        self.metricas_data_fim.setPlaceholderText("dd/mm/aaaa")
+        self.metricas_data_fim.setText(datetime.now().strftime("%d/%m/%Y"))
+        self.metricas_data_fim.setFixedHeight(28)
+        self.metricas_data_fim.setStyleSheet("""
+            QLineEdit { background-color: #2d2d2d; color: white; padding: 4px; border: 1px solid #555; border-radius: 4px; font-size: 11px; }
+            QLineEdit:hover { border-color: #123b51; }
+        """)
+        self.metricas_data_fim.returnPressed.connect(lambda: [self.formatar_data(self.metricas_data_fim), self.atualizar_tab_metricas()])
+        data_layout.addWidget(QLabel("📅 Fim:"))
+        data_layout.addWidget(self.metricas_data_fim)
+        
+        sidebar_layout.addWidget(self.metricas_data_widget)
+         
+
         # ═══ NOVO: Barra de Progresso na Sidebar ═══
         # Label de progresso
         self.progress_label = QLabel("Pronto para iniciar")
@@ -421,6 +539,40 @@ class App(QMainWindow):
         tab_error_layout.addWidget(self.error_area)
         self.tabview.addTab(tab_error, "IDs com Erro")
         
+        # 999999: NOVA TAB DE MÉTRICAS
+        tab_metricas = QWidget()
+        tab_metricas_layout = QVBoxLayout(tab_metricas)
+        tab_metricas_layout.setSpacing(15)
+
+        
+
+        
+        # Label de resultado
+        self.metricas_resultado = QLabel("✅ 0 | ❌ 0 | 📊 0")
+        self.metricas_resultado.setStyleSheet("""
+            QLabel {
+                color: white; font-size: 24px; font-weight: bold; padding: 25px;
+                background-color: #252525; border-radius: 12px;
+            }
+        """)
+        self.metricas_resultado.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        tab_metricas_layout.addWidget(self.metricas_resultado)
+        
+        # 999999: Label de resumo da data selecionada
+        self.metricas_data_resumo = QLabel("")
+        self.metricas_data_resumo.setStyleSheet("""
+            QLabel {
+                color: #aaa; font-size: 13px; padding: 10px;
+                background-color: #252525; border-radius: 8px;
+            }
+        """)
+        self.metricas_data_resumo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        tab_metricas_layout.addWidget(self.metricas_data_resumo)
+        
+        tab_metricas_layout.addStretch()
+
+        self.tabview.addTab(tab_metricas, "📊 Métricas")
+        
         # tab do botão de iniciar o processo
         tab_iniciar = QWidget()
         tab_iniciar.setStyleSheet("background-color: #1e1e1e;")
@@ -428,6 +580,7 @@ class App(QMainWindow):
         
         # conector do clique de cada tab
         self.tabview.tabBarClicked.connect(self.tab_clicada)
+        self.tabview.currentChanged.connect(self.atualizar_visibilidade_sidebar)  # 999999
 
         right_layout.addWidget(self.tabview)
         main_layout.addWidget(right_widget)
@@ -446,7 +599,7 @@ class App(QMainWindow):
 
 
     def tab_clicada(self, index):
-        if index == 4:
+        if index == 5:
             self.validar_e_rodar()
             self.tabview.setCurrentIndex(1)
 
@@ -461,13 +614,17 @@ class App(QMainWindow):
         texto = f"{datetime.now().strftime('%H:%M:%S')} - ID: {id_v} - {msg}\n"
         self.success_area.append(texto)
         salvar_backup(id_v, msg)
-        # QApplication.processEvents()
+        salvar_metrica(id_v, "sucesso")        
+        self.cont_sucesso += 1
+        self.atualizar_metricas()
 
     def registrar_erro(self, id_v, msg):
         texto = f"{datetime.now().strftime('%H:%M:%S')} - ID: {id_v} - {msg}\n"
         self.error_area.append(texto)
         salvar_erro_txt(id_v, msg)
-        # QApplication.processEvents()
+        salvar_metrica(id_v, "erro")
+        self.cont_erro += 1
+        self.atualizar_metricas()
 
     def limpar_logs(self):
         reply = QMessageBox.question(self, "Limpar", "Deseja limpar todos os campos de entrada e logs?",
@@ -478,7 +635,80 @@ class App(QMainWindow):
             self.success_area.clear()
             self.error_area.clear()
 
+    def atualizar_metricas(self):
+        total = self.cont_sucesso + self.cont_erro
+        fila = len(self.ids_processar) - total if len(self.ids_processar) > total else 0
+        self.metrics_label.setText(f"📊 Sessão | 📊 {total} | ✅ {self.cont_sucesso} | ❌ {self.cont_erro} | ⏳ {fila}")
+
+    # 999999: funcao chamada quando seleciona opcao no menu dropdown
+    def selecionar_metrica(self, opcao):
+        self.metricas_sidebar_btn.setText(opcao)
+        mostrar_datas = "Data" in opcao or "Período" in opcao
+        self.metricas_data_widget.setVisible(mostrar_datas)
+        self.metricas_data_fim.setVisible("Período" in opcao)
+        self.atualizar_tab_metricas(opcao)   
+
+    # 999999: mostra/esconde dropdown da sidebar conforme a tab
+    def atualizar_visibilidade_sidebar(self, index):
+        visivel = (index == 4)
+        self.metricas_sidebar_btn.setVisible(visivel)
+        opcao = self.metricas_sidebar_btn.text()
+        mostrar_datas = visivel and ("Data" in opcao or "Período" in opcao)
+        self.metricas_data_widget.setVisible(mostrar_datas)   
+
+    # 999999: atualiza a tab de metricas baseado no periodo selecionado
+    def atualizar_tab_metricas(self, selecao=None):
+        if selecao is None:
+            selecao = self.metricas_sidebar_btn.text()
+        if hasattr(selecao, 'toString'):
+            selecao = self.metricas_sidebar_btn.text()
         
+        # 999999: Força pegar o texto do botão para saber qual opção está selecionada
+        opcao_atual = self.metricas_sidebar_btn.text()
+        
+        hoje = datetime.now().strftime("%d/%m/%Y")
+        ontem = (datetime.now() - timedelta(days=1)).strftime("%d/%m/%Y")
+        
+        if "Sessão Atual" in opcao_atual:
+            m = {"sucesso": self.cont_sucesso, "erro": self.cont_erro, "total": self.cont_sucesso + self.cont_erro}
+        elif "Hoje" in opcao_atual:
+            m = carregar_metricas(data_inicio=hoje)
+        elif "Ontem" in opcao_atual:
+            m = carregar_metricas(data_inicio=ontem)
+        elif "Selecionar Data" in opcao_atual:
+            data_sel = self.metricas_data_inicio.text().strip()
+            m = carregar_metricas(data_inicio=data_sel)
+        elif "Período" in opcao_atual:
+            data_ini = self.metricas_data_inicio.text().strip()
+            data_fim = self.metricas_data_fim.text().strip()
+            m = carregar_metricas(data_inicio=data_ini, data_fim=data_fim)
+        else:
+            m = {"sucesso": 0, "erro": 0, "total": 0}
+        
+        # 999999: Atualiza resumo da data
+        if "Sessão Atual" in opcao_atual:
+            self.metricas_data_resumo.setText("")
+        elif "Hoje" in opcao_atual:
+            self.metricas_data_resumo.setText(f"📅 Data: {hoje}")
+        elif "Ontem" in opcao_atual:
+            self.metricas_data_resumo.setText(f"📅 Data: {ontem}")
+        elif "Selecionar Data" in opcao_atual:
+            data_sel = self.metricas_data_inicio.text().strip()
+            self.metricas_data_resumo.setText(f"📅 Data: {data_sel}")
+        elif "Período" in opcao_atual:
+            data_ini = self.metricas_data_inicio.text().strip()
+            data_fim = self.metricas_data_fim.text().strip()
+            self.metricas_data_resumo.setText(f"📅 Data: {data_ini} - {data_fim}")        
+
+        self.metricas_resultado.setText(f"✅ {m['sucesso']} | ❌ {m['erro']} | 📊 {m['total']}")
+
+
+    # 999999: formata data automaticamente ao digitar
+    def formatar_data(self, campo):
+        texto = campo.text().strip().replace("/", "").replace(".", "").replace("-", "")
+        if len(texto) == 8 and texto.isdigit():
+            campo.setText(f"{texto[0:2]}/{texto[2:4]}/{texto[4:8]}")
+
     def abrir_credenciais(self):
         dialog = QDialog(self)
         dialog.setWindowTitle("Gerenciar Credenciais")
@@ -601,6 +831,9 @@ class App(QMainWindow):
             return
         self.tabview.setCurrentIndex(1)
         self.statusBar().showMessage("Executando automação...")
+        self.cont_sucesso = 0
+        self.cont_erro = 0
+        self.atualizar_metricas()
 
         # ═══ NOVO: Mostrar e configurar barra ═══
         #s elf.progress_bar.setVisible(True)
@@ -622,7 +855,7 @@ class App(QMainWindow):
         chrome_options.add_argument("--window-size=1920,1080")
         
         driver = webdriver.Chrome(service=servico, options=chrome_options)
-        wait = WebDriverWait(driver, 30)
+        wait = WebDriverWait(driver, 45)
 
         def focar_sap():
             driver.switch_to.default_content()
@@ -635,6 +868,8 @@ class App(QMainWindow):
             for tentativa in range(3):
                 try:
                     elemento = wait.until(EC.element_to_be_clickable((tipo_seletor, seletor)))
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elemento)
+                    time.sleep(0.8)
                     elemento.click()
                     if seletor_espera:
                         WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, seletor_espera)))
@@ -900,6 +1135,7 @@ class App(QMainWindow):
                 # ════════════════════════════
                 
                 sap_handle = None
+                erro_ja_registrado = False  # 999999: controle de erro duplicado
                 try:
                     self.atualizar_log(f"Processando ID: {id_v360}...")
                     
@@ -969,6 +1205,7 @@ class App(QMainWindow):
                     # verifica se o campo de solicitação tem realmente uma solicitação e não um pedido aleatório preenchido pelo solicitante, caso tenha um numero de 7 ou mais caracteres, classifica como pedido e avisa no painel que tem um pedido no lugar da solicitação, para que o usuário verifique a situação do pedido.
                     if len(v_solicitacao) >= 7:
                         self.atualizar_log(f"Aviso: {id_v360} possui pedido no lugar da solicitação. Verifique a situação do pedido.", "amarelo")
+                        self.registrar_erro(id_v360, f"Possui pedido ({v_solicitacao}) no lugar da solicitação. Verifique manualmente.")
                         continue
                         
                     # se a medição for da Kora (1400), avisa que é da Kora pois o processo para fazer pedido da Kora é diferente e no momento deve ser feito manual.
@@ -987,29 +1224,29 @@ class App(QMainWindow):
                                     break
                     
                     driver.switch_to.window(sap_handle)
-                    time.sleep(3)  # ← Aumentar um pouco o sleep para garantir
+                    time.sleep(2)
                     focar_sap()
-                    time.sleep(3)
-                    # ativar sintese sap - tenta clicar várias vezes até o dropdown aparecer
-                    sintese_funcionou = False
-                    for tentativa_sintese in range(10):
-                        try:
-                            elemento = driver.find_element(By.CSS_SELECTOR, "div[lsdata*='Ativar síntese de documentos']")
-                            elemento.click()
-                        except:
-                            pass
-                        time.sleep(3)
-                        # Verifica se o dropdown apareceu
-                        try:
-                            driver.find_element(By.CSS_SELECTOR, "[title*='Variante de seleção']")
-                            sintese_funcionou = True
-                            break
-                        except:
-                            pass
                     
-                    if not sintese_funcionou:
+                    # Aguarda elemento do SAP carregar (por ID)
+                    try:
+                        WebDriverWait(driver, 30).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, "span[id*='78-text']"))
+                        )
+                    except:
+                        pass
+                    time.sleep(2)
+                    
+                    # ativar sintese sap com retry
+                    if not clicar_com_retry("div[lsdata*='Ativar síntese de documentos']", By.CSS_SELECTOR, "Ativar síntese"):
                         self.atualizar_log("Botão Ativar síntese não funcionou", "amarelo")
-                        continue  # ← AGORA PULA PARA O PRÓXIMO ID
+                        continue
+                    
+                    # Verifica se o dropdown apareceu
+                    try:
+                        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "[title*='Variante de seleção']")))
+                    except:
+                        self.atualizar_log("Dropdown da síntese não apareceu", "amarelo")
+                        continue
 
                     # abrir dropdown
                     try:
@@ -1330,6 +1567,7 @@ class App(QMainWindow):
                             if erro_gravacao.is_displayed():
                                 self.atualizar_log(f"ID {id_v360} com erro ao criar pedido. Verificar manual", "vermelho")
                                 self.registrar_erro(id_v360, "Erro ao gravar documento no SAP")
+                                erro_ja_registrado = True  # 999999: evita duplicar
                                 break
                         except:
                             pass
@@ -1439,6 +1677,7 @@ class App(QMainWindow):
 
                         if not status_correto:
                             self.atualizar_log(f"[FALHA] Verificar pedido e medição do id #{id_v360}", "vermelho")
+                            self.registrar_erro(id_v360, "Status não atualizou após tentar novamente")
 
                         # --- marcar AV e FEITO no kora-medicoes.web.app ---
                         driver.switch_to.window(kora_handle)
@@ -1456,14 +1695,14 @@ class App(QMainWindow):
                         self.atualizar_log(f"✅ ID {id_v360} LIBERADO!")
 
                     else:
-                        self.atualizar_log(f"Erro não identificado: {id_v360}: Verificar manual", "vermelho")
-                        self.registrar_erro(id_v360, "ALERTA: Pedido não localizado após CTRL+S")
+                        if not erro_ja_registrado:  # 999999: so registra se nao foi antes
+                            self.atualizar_log(f"Erro não identificado: {id_v360}: Verificar manual", "vermelho")
+                            self.registrar_erro(id_v360, "ALERTA: Pedido não localizado após CTRL+S")
+
                 except Exception as e:
-                    self.atualizar_log(f"Falha ID {id_v360}: {str(e)}", "vermelho")
-                    self.registrar_erro(id_v360, str(e))
-                except:
-                    self.atualizar_log(f"Erro ao confirmar ID {id_v360}", "vermelho")
-                    self.registrar_erro(id_v360, "Erro ao extrair confirmação do SAP")
+                    import traceback
+                    self.atualizar_log(f"Falha ID {id_v360}: {str(e)[:200]}", "vermelho")
+                    self.registrar_erro(id_v360, str(e)[:200])
                 finally:
                     if sap_handle:
                         try:
