@@ -1120,11 +1120,14 @@ class App(QMainWindow):
                     v360_handle = handle
                     break
             driver.switch_to.window(v360_handle)
+            time.sleep(1) #THASYLA
             wait.until(EC.presence_of_element_located((By.ID, "user_login"))).send_keys(creds["V360_USER"])
+            time.sleep(2) #THASYLA
             wait.until(EC.presence_of_element_located((By.ID, "user_password"))).send_keys(creds["V360_PASS"])
+            time.sleep(3) #THASYLA
             
             clicar_com_retry("button.v-btn.submit-button", By.CSS_SELECTOR, "Login V360")
-            
+            time.sleep(5) #THASYLA
 
             for idx, id_v360 in enumerate(self.ids_processar, 1):
                 # ═══ NOVO: Atualizar barra ═══
