@@ -1591,17 +1591,17 @@ class App(QMainWindow):
                     # Se encontrou pedido, continua
                     if pedido_gerado:
                         self.registrar_sucesso(id_v360, pedido_gerado)
-                        self.atualizar_log(f"Sucesso: Pedido criado.", "verde")
+                        self.atualizar_log(f"Sucesso: Pedido criado. Número: {pedido_gerado}", "verde")
 
                         self.atualizar_log("DEBUG: Voltando para V360...")
 
                         # voltar para o v360 para colocar o numero do pedido, categoria avulso e liberar a medição
                         driver.switch_to.window(v360_handle)
-                        
+                        time.sleep(2) #THASYLA
                         btn_editar = wait.until(EC.element_to_be_clickable((By.ID, "nav-edit-tab")))
                         time.sleep(0.5)
                         btn_editar.click()
-                        time.sleep(0.5) 
+                        time.sleep(1) #THASYLA 0.5 > 1
 
                         # preencher o pedido
                         script_final = """
@@ -1630,9 +1630,9 @@ class App(QMainWindow):
                             pass
                         span_select2 = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "[aria-labelledby='select2-acceptance_term_items_attributes_0_cf_tipo_de_pedido-container']")))
                         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", span_select2)
-                        time.sleep(0.5)
+                        time.sleep(1) #THASYLA 0.5 > 1
                         span_select2.click()
-                        time.sleep(0.5)
+                        time.sleep(1) #THASYLA 0.5 > 1
                         
                         opcao_texto = "Pedido Avulso"
                         wait.until(EC.element_to_be_clickable((By.XPATH, f"//li[contains(text(), '{opcao_texto}')]"))).click()
@@ -1645,12 +1645,12 @@ class App(QMainWindow):
 
                         # botão "ir para ações pendentes" do v360
                         btn_pendentes = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button.processable-pending-actions-btn")))
-                        time.sleep(0.5)
+                        time.sleep(1) #THASYLA 0.5 > 1
                         btn_pendentes.click()
 
                         # botão de "tentar novamente" (libera medição)
                         btn_tentar = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Tentar Novamente__IServ')]")))
-                        time.sleep(0.5)
+                        time.sleep(1) #THASYLA 0.5 > 1
                         btn_tentar.click()
 
                         # verificar se foi para a alçada do solicitante (seguiu) ou se ficou na mesma etapa, com logica de atualizar a pagina algumas vezes para evitar falhas de atualização do status do v360, que é bem frequente.
