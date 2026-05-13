@@ -387,52 +387,42 @@
 
         }
 
-        
 
-                    // === REGISTRAR PEDIDOS PRONTOS (com ID e número do pedido) ===
+        // === REGISTRAR PEDIDOS PRONTOS (com ID e número do pedido) ===
         eel.expose(addPedidoPronto);
         function addPedidoPronto(timestamp, id_v360, num_pedido) {
             const container = document.getElementById('sucesso-container');
-            
-            // Só remove o placeholder se for o ÚNICO filho
-            if (container.children.length === 1 && container.children[0].classList.contains('text-dark-400')) {
-                container.innerHTML = '';
-            }
+            const placeholder = container.querySelector('.text-dark-400');
+            if (placeholder) placeholder.remove();
             
             const entry = document.createElement('p');
-            entry.className = 'animate-fade-in text-green-400';
+            entry.className = 'animate-fade-in text-green-400 border-b border-dark-700/30 pb-1 mb-1';
             entry.innerHTML = `<span class="text-dark-400">[${timestamp}]</span> <span class="text-white font-semibold">ID: ${id_v360}</span> - <span class="text-green-300">Pedido: ${num_pedido}</span>`;
             container.appendChild(entry);
             container.scrollTop = container.scrollHeight;
         }
-        
-        // === REGISTRAR ERROS (com ID e mensagem) ===
+
         eel.expose(addErro);
         function addErro(timestamp, id_v360, mensagem) {
             const container = document.getElementById('erro-container');
-            
-            if (container.children.length === 1 && container.children[0].classList.contains('text-dark-400')) {
-                container.innerHTML = '';
-            }
+            const placeholder = container.querySelector('.text-dark-400');
+            if (placeholder) placeholder.remove();
             
             const entry = document.createElement('p');
-            entry.className = 'animate-fade-in text-red-400';
+            entry.className = 'animate-fade-in text-red-400 border-b border-dark-700/30 pb-1 mb-1';
             entry.innerHTML = `<span class="text-dark-400">[${timestamp}]</span> <span class="text-white font-semibold">ID: ${id_v360}</span> - <span class="text-red-300">${mensagem}</span>`;
             container.appendChild(entry);
             container.scrollTop = container.scrollHeight;
         }
-        
-        // === REGISTRAR SOLICITANTE (com ID e motivo) ===
+
         eel.expose(addSolicitante);
         function addSolicitante(timestamp, id_v360, mensagem) {
             const container = document.getElementById('solicitante-container');
-            
-            if (container.children.length === 1 && container.children[0].classList.contains('text-dark-400')) {
-                container.innerHTML = '';
-            }
+            const placeholder = container.querySelector('.text-dark-400');
+            if (placeholder) placeholder.remove();
             
             const entry = document.createElement('p');
-            entry.className = 'animate-fade-in text-orange-400';
+            entry.className = 'animate-fade-in text-orange-400 border-b border-dark-700/30 pb-1 mb-1';
             entry.innerHTML = `<span class="text-dark-400">[${timestamp}]</span> <span class="text-white font-semibold">ID: ${id_v360}</span> - <span class="text-orange-300">${mensagem}</span>`;
             container.appendChild(entry);
             container.scrollTop = container.scrollHeight;
