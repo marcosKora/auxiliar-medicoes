@@ -261,6 +261,24 @@ def executar_automacao(ids_processar):
     driver = webdriver.Chrome(service=servico, options=chrome_options)
     wait = WebDriverWait(driver, 45)
 
+    def esperar_elemento(by, selector, timeout=30):
+        """Espera DINÂMICA - rápido em PCs bons, paciente em PCs lentos"""
+        try:
+            return WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((by, selector))
+            )
+        except:
+            return None
+
+    def esperar_clicavel(by, selector, timeout=30):
+        """Espera elemento ficar clicável"""
+        try:
+            return WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((by, selector))
+            )
+        except:
+            return None    
+
     def focar_sap():
         driver.switch_to.default_content()
         try:
@@ -384,7 +402,7 @@ def executar_automacao(ids_processar):
         campo_pesquisa = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[placeholder='Pesquisar...']")))
         campo_pesquisa.clear()
         campo_pesquisa.send_keys(id_v360)
-        time.sleep(1.5)
+        esperar_elemento(By.CSS_SELECTOR, "span.bg-slate-100", 10)
         
         # pegar o número do pedido
         try:
@@ -465,7 +483,7 @@ def executar_automacao(ids_processar):
         
         # verificar se foi para a alçada do solicitante (seguiu) ou se ficou na mesma etapa, com logica de atualizar a pagina algumas vezes para evitar falhas de atualização do status do v360, que é bem frequente.
         status_correto = False
-        time.sleep(3)
+        esperar_elemento(By.CLASS_NAME, "checkout-bar-item-title", 15)
         
         for i in range(5):
             try:
@@ -478,7 +496,7 @@ def executar_automacao(ids_processar):
         
         if not status_correto:
             driver.refresh()
-            time.sleep(3)
+            time.sleep(1.5)
             for i in range(5):
                 try:
                     status_txt = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "checkout-bar-item-title"))).text.strip().lower()
@@ -654,7 +672,7 @@ def executar_automacao(ids_processar):
                                 break
                 
                 driver.switch_to.window(sap_handle)
-                time.sleep(2)
+                time.sleep(1)
                 focar_sap()
                 
                 # Aguarda elemento do SAP carregar (por ID)
@@ -664,7 +682,7 @@ def executar_automacao(ids_processar):
                     )
                 except:
                     pass
-                time.sleep(2)
+                time.sleep(1)
                 
                 # ativar sintese sap com retry
                 if not clicar_com_retry("div[lsdata*='Ativar síntese de documentos']", By.CSS_SELECTOR, "Ativar síntese"):
@@ -685,7 +703,7 @@ def executar_automacao(ids_processar):
                 except:
                     pass
                 if not clicar_com_retry("[title*='Variante de seleção']", By.CSS_SELECTOR, "Variante de seleção"): continue
-                time.sleep(1)
+                time.sleep(0.5)
                 
                 # clicar em requisições de compra
                 try:
@@ -702,18 +720,32 @@ def executar_automacao(ids_processar):
                 campo_acomp.clear()
                 campo_acomp.send_keys(v_solicitacao)
                 campo_acomp.send_keys(Keys.F8)
-                time.sleep(1.5)
-                
-                # tratamento de erro para ver se a solicitação existe ou não na base do SAP, caso exista, segue o processo normalmente, caso não exista, manda automaticamente para o solicitante no v360 
+
+                # Espera INTELIGENTE: ou aparece o erro OU aparece a caixinha
                 try:
-                    msg_inexistente = driver.find_element(By.ID, "M1:46:::0:5-text").text
-                    if "Não existem dados para os critérios de seleção" in msg_inexistente:
-                        atualizar_log_frontend(f"Aviso: ID {id_v360} não foi encontrado na base SAP", "warning")
-                        enviar_ao_solicitante(id_v360, "inexistente_sap")
-                        continue
-                except: pass
-                
-                # selecionar a primeira caixinha para espelhar
+                    # Espera até 15s por QUALQUER um dos dois
+                    WebDriverWait(driver, 15).until(
+                        lambda d: (
+                            d.find_elements(By.ID, "M1:46:::0:5-text") or 
+                            d.find_elements(By.CLASS_NAME, "urST5SCMetricInner")
+                        )
+                    )
+                    
+                    # Verifica se foi erro
+                    try:
+                        msg_inexistente = driver.find_element(By.ID, "M1:46:::0:5-text").text
+                        if "Não existem dados para os critérios de seleção" in msg_inexistente:
+                            atualizar_log_frontend(f"Aviso: ID {id_v360} não foi encontrado na base SAP", "warning")
+                            enviar_ao_solicitante(id_v360, "inexistente_sap")
+                            continue
+                    except:
+                        pass  # Não era erro, era a caixinha!
+                    
+                except:
+                    atualizar_log_frontend(f"Timeout: SAP não respondeu para ID {id_v360}", "warning")
+                    continue
+
+                # Se chegou aqui, a caixinha apareceu - continua normalmente
                 wait.until(EC.presence_of_element_located((By.CLASS_NAME, "urST5SCMetricInner")))
                 driver.execute_script("""
                     const metric = document.querySelector('.urST5SCMetricInner');
@@ -724,17 +756,25 @@ def executar_automacao(ids_processar):
                         });
                     }
                 """)
-                time.sleep(2)
+                time.sleep(1.5)
+                
                 
                 # clicar para espelhar a requisição
                 if not clicar_com_retry("[title='Transferir']", By.CSS_SELECTOR, "Botão Transferir"): continue
-                time.sleep(3)
+
+                # Espera INTELIGENTE: sai assim que o campo do hospital aparecer
+                try:
+                    WebDriverWait(driver, 15).until(
+                        EC.presence_of_element_located((By.ID, "M0:46:1:3:2:1:1[1,16]_c"))
+                    )
+                except:
+                    atualizar_log_frontend("Timeout: campos não carregaram após Transferir", "error")
+                    continue
                 
                  # tratamento de erro para verificar se a solicitação espelhou corretamente (hospital correto e como serviço), caso tenha espelhado corretamente, segue o processo normalmente, caso contrário, manda automaticamente para o solicitante no v360.
                 # parte especifica de verificar se o hospital está correto, de acordo com a unidade da medição
                 try:
-                    wait.until(EC.presence_of_element_located((By.ID, "M0:46:1:3:2:1:1[1,16]_c")))
-                    time.sleep(0.5)
+                    # PRIMEIRO: Verifica Unidade (hospital)
                     json_data = driver.execute_script('return document.getElementById("M0:46:1:3:2:1:1[1,16]_c").getAttribute("lsdata");')
                     nome_campo = json.loads(json_data).get("21", {}).get("value", "")
                     
@@ -827,14 +867,14 @@ def executar_automacao(ids_processar):
                 except:
                     pass
                 if not clicar_com_retry("NSH2_copy", By.ID, "Botão Copy Fornecedor"): continue
-                time.sleep(2)
+                time.sleep(1.5)
                 
                 # ultimo enter para confirmar a seleção do fornecedor depois da tela ser fechada
                 try:
                     wait.until(EC.invisibility_of_element_located((By.ID, "NSH2_copy")))
                     time.sleep(0.5)
                 except:
-                    time.sleep(1)
+                    time.sleep(0.5)
                 driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ENTER)
                 time.sleep(2)
 
@@ -856,18 +896,18 @@ def executar_automacao(ids_processar):
                 campo_moeda_element = driver.find_elements(By.CSS_SELECTOR, "input[title*='Código da moeda']")
                 if not campo_moeda_element:
                     ActionChains(driver).key_down(Keys.CONTROL).send_keys(Keys.F2).key_up(Keys.CONTROL).perform()
-                    time.sleep(2)
+                    time.sleep(1)
                     
                     # clicar em remessa/fatura com retry até aparecer o ZTERM
-                    for tentativa_remessa in range(3):
+                    for tentativa_remessa in range(5):
                         clicar_com_retry("//span[contains(text(), 'Remessa/fatura')]", By.XPATH, "Aba Remessa/fatura")
-                        time.sleep(1)
+                        time.sleep(0.5)
                         # Verifica se ZTERM apareceu
                         try:
-                            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[lsdata*='MEPO1226-ZTERM']")), timeout=5)
+                            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "input[lsdata*='MEPO1226-ZTERM']")), timeout=10)
                             break
                         except:
-                            if tentativa_remessa == 2:
+                            if tentativa_remessa == 4:
                                 atualizar_log_frontend("Aba Remessa/fatura não abriu corretamente", "warning")
                                 continue
                 
@@ -891,11 +931,17 @@ def executar_automacao(ids_processar):
                 time.sleep(1.5)
                 
                 # abrir a "ultima" aba dentro do SAP para colocar a o valor do pedido, quantidade 1 e o codigo IVA, usando CTRL+4
-                ActionChains(driver).key_down(Keys.CONTROL).send_keys("4").key_up(Keys.CONTROL).perform()
-                time.sleep(2)
-                
-                # clicar no botão de condições para abrir a tela de condições de pagamento e inserir o valor do pedido
-                if not clicar_com_retry("//span[contains(text(), 'Condições')]", By.XPATH, "Aba Condições"): continue
+                for tentativa_condicoes in range(10):
+                    ActionChains(driver).key_down(Keys.CONTROL).send_keys("4").key_up(Keys.CONTROL).perform()
+                    time.sleep(0.5)
+                    
+                    # clicar no botão de condições para abrir a tela de condições de pagamento e inserir o valor do pedido
+                    if clicar_com_retry("//span[contains(text(), 'Condições')]", By.XPATH, "Aba Condições"):
+                        break  # Achou → sai do loop
+                else:
+                    # Não achou após 10 tentativas de CTRL+4
+                    atualizar_log_frontend("Aba Condições não apareceu após 10 tentativas", "warning")
+                    continue  # Pula pro próximo ID
                 time.sleep(1)
                 
                 # colocar o valor
@@ -906,7 +952,7 @@ def executar_automacao(ids_processar):
                     pass
                 if not clicar_com_retry("M0:46:1:4:2:1:2:1:2B264:1:3[1,4]_c", By.ID, "Valor Condições", "M0:46:1:4:2:1:2:1:2B264:1:3[1,4]_c"): continue
                 driver.execute_script(f'document.getElementById("M0:46:1:4:2:1:2:1:2B264:1:3[1,4]_c").focus(); document.execCommand("insertText", false, "{v_valor}");')
-                time.sleep(1.5)
+                time.sleep(1)
                 
                 # clicar no botão de quantidade para inserir a quantidade 1
                 try:
@@ -915,9 +961,9 @@ def executar_automacao(ids_processar):
                 except:
                     pass
                 if not clicar_com_retry("M0:46:1:4:2:1:2:1::0:4-text", By.ID, "Quantidade", "M0:46:1:4:2:1:2:1:2B260:1::0:16"): continue
-                time.sleep(1.5)
-                driver.execute_script("document.getElementById('M0:46:1:4:2:1:2:1:2B260:1::0:16').value = '1';")
                 time.sleep(1)
+                driver.execute_script("document.getElementById('M0:46:1:4:2:1:2:1:2B260:1::0:16').value = '1';")
+                time.sleep(0.8)
                 
                 # clicar no botão de fatura para inserir o IVA
                 try:
@@ -926,7 +972,7 @@ def executar_automacao(ids_processar):
                 except:
                     pass
                 if not clicar_com_retry("M0:46:1:4:2:1:2:1::0:7-text", By.ID, "Fatura/IVA", "M0:46:1:4:2:1:2:1:2B263::0:68"): continue
-                time.sleep(1.5)
+                time.sleep(0.5)
                 
                 # colocar o código do iva com base nos csv salvos localmente na mesma pasta do robô
                 try:
@@ -941,39 +987,32 @@ def executar_automacao(ids_processar):
                 driver.execute_script(f'arguments[0].focus(); document.execCommand("insertText", false, "{v_iva}");', iva_field)
                 time.sleep(0.5)
                 iva_field.send_keys(Keys.ENTER)
-                time.sleep(3)
-                
+
+                # Espera INTELIGENTE: sai assim que o campo de data início estiver disponível
+                try:
+                    WebDriverWait(driver, 15).until(
+                        EC.presence_of_element_located((By.ID, "M0:46:1:3:2:1:1[1,42]_c"))
+                    )
+                except:
+                    atualizar_log_frontend("Timeout: campo de data não carregou após ENTER", "warning")
+                time.sleep(1)
                 # colocar as datas de inicio e fim no pedido (dia da criação do pedido e 30 dias depois)
                 hoje = datetime.now().strftime("%d.%m.%Y")
                 prox = (datetime.now() + timedelta(days=30)).strftime("%d.%m.%Y")
-                
-                # Espera o campo de data início aparecer
-                try:
-                    wait.until(EC.presence_of_element_located((By.ID, "M0:46:1:3:2:1:1[1,42]_c")))
-                    time.sleep(0.5)
-                except:
-                    pass
-                
-                # Preenche data início
+
+                # Preenche data início (campo já carregado)
                 driver.execute_script(f"""
                     let d1 = document.getElementById("M0:46:1:3:2:1:1[1,42]_c");
                     if(d1) {{ d1.focus(); d1.value = ''; document.execCommand('insertText', false, '{hoje}'); d1.dispatchEvent(new Event('change', {{bubbles:true}})); }}
                 """)
-                time.sleep(1)
-                
-                # Espera o campo de data fim aparecer
-                try:
-                    wait.until(EC.presence_of_element_located((By.ID, "M0:46:1:3:2:1:1[1,43]_c")))
-                    time.sleep(0.5)
-                except:
-                    pass
-                
-                # Preenche data fim
+                time.sleep(0.5)
+
+                # Preenche data fim (campo já carregado - mesma tela)
                 driver.execute_script(f"""
                     let d2 = document.getElementById("M0:46:1:3:2:1:1[1,43]_c");
                     if(d2) {{ d2.focus(); d2.value = ''; document.execCommand('insertText', false, '{prox}'); d2.dispatchEvent(new Event('change', {{bubbles:true}})); }}
                 """)
-                time.sleep(2)
+                time.sleep(1)
                 
                 # salvar pedido com CTRL+S
                 ActionChains(driver).key_down(Keys.CONTROL).send_keys("s").key_up(Keys.CONTROL).perform()
@@ -1082,7 +1121,7 @@ def executar_automacao(ids_processar):
 
                     # verificar se foi para a alçada do solicitante (seguiu) ou se ficou na mesma etapa, com logica de atualizar a pagina algumas vezes para evitar falhas de atualização do status do v360, que é bem frequente.
                     status_correto = False
-                    time.sleep(3) 
+                    esperar_elemento(By.CLASS_NAME, "checkout-bar-item-title", 15)
 
                     for i in range(5):
                         try:
@@ -1095,7 +1134,7 @@ def executar_automacao(ids_processar):
                     
                     if not status_correto:
                         driver.refresh()
-                        time.sleep(3)
+                        time.sleep(1.5)
                         for i in range(5):
                             try:
                                 status_txt = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "checkout-bar-item-title"))).text.strip().lower()
