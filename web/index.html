@@ -393,7 +393,7 @@
         eel.expose(addPedidoPronto);
         function addPedidoPronto(timestamp, id_v360, num_pedido) {
             const container = document.getElementById('sucesso-container');
-            if (container.querySelector('.text-dark-400')) {
+            if (placeholder && container.children.length === 1) {
                 container.innerHTML = '';
             }
             const entry = document.createElement('p');
