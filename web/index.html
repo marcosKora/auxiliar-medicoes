@@ -393,9 +393,12 @@
         eel.expose(addPedidoPronto);
         function addPedidoPronto(timestamp, id_v360, num_pedido) {
             const container = document.getElementById('sucesso-container');
-            if (placeholder && container.children.length === 1) {
+            
+            // Só remove o placeholder se for o ÚNICO filho
+            if (container.children.length === 1 && container.children[0].classList.contains('text-dark-400')) {
                 container.innerHTML = '';
             }
+            
             const entry = document.createElement('p');
             entry.className = 'animate-fade-in text-green-400';
             entry.innerHTML = `<span class="text-dark-400">[${timestamp}]</span> <span class="text-white font-semibold">ID: ${id_v360}</span> - <span class="text-green-300">Pedido: ${num_pedido}</span>`;
@@ -407,9 +410,11 @@
         eel.expose(addErro);
         function addErro(timestamp, id_v360, mensagem) {
             const container = document.getElementById('erro-container');
-            if (container.querySelector('.text-dark-400')) {
+            
+            if (container.children.length === 1 && container.children[0].classList.contains('text-dark-400')) {
                 container.innerHTML = '';
             }
+            
             const entry = document.createElement('p');
             entry.className = 'animate-fade-in text-red-400';
             entry.innerHTML = `<span class="text-dark-400">[${timestamp}]</span> <span class="text-white font-semibold">ID: ${id_v360}</span> - <span class="text-red-300">${mensagem}</span>`;
@@ -421,9 +426,11 @@
         eel.expose(addSolicitante);
         function addSolicitante(timestamp, id_v360, mensagem) {
             const container = document.getElementById('solicitante-container');
-            if (container.querySelector('.text-dark-400')) {
+            
+            if (container.children.length === 1 && container.children[0].classList.contains('text-dark-400')) {
                 container.innerHTML = '';
             }
+            
             const entry = document.createElement('p');
             entry.className = 'animate-fade-in text-orange-400';
             entry.innerHTML = `<span class="text-dark-400">[${timestamp}]</span> <span class="text-white font-semibold">ID: ${id_v360}</span> - <span class="text-orange-300">${mensagem}</span>`;
