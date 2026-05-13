@@ -1789,42 +1789,47 @@ class App(QMainWindow):
             driver.quit()
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    
-    splash = SplashScreen()
-    splash.show()
-    splash.set_progress(5)
-    
-    if not verificar_acesso_remoto():
+    import builtins
+    if hasattr(builtins, '__headless__') and builtins.__headless__:
+        # Modo headless: chamado pelo motor.py, NÃO abre interface
+        pass
+    else:
+        app = QApplication(sys.argv)
+        
+        splash = SplashScreen()
+        splash.show()
+        splash.set_progress(5)
+        
+        if not verificar_acesso_remoto():
+            splash.close()
+            sys.exit()
+        
+        splash.set_progress(30)
+        
+        VERSAO_ATUAL = "3.0.0"
+        versao_minima = verificar_versao()
+        if versao_minima > VERSAO_ATUAL:
+            splash.close()
+            QMessageBox.warning(
+                None,
+                "Atualização Necessária",
+                f"Nova versão {versao_minima} disponível!\n"
+                f"Sua versão: {VERSAO_ATUAL}\n\n"
+                "Baixe a atualização no link enviado."
+            )
+            sys.exit()
+        
+        splash.set_progress(55)
+        
+        apply_stylesheet(app, theme='dark_blue.xml')
+        
+        splash.set_progress(80)
+        
+        window = App()
+        
+        splash.set_progress(100)
+        time.sleep(0.4)
+        
         splash.close()
-        sys.exit()
-    
-    splash.set_progress(30)
-    
-    VERSAO_ATUAL = "3.0.0"
-    versao_minima = verificar_versao()
-    if versao_minima > VERSAO_ATUAL:
-        splash.close()
-        QMessageBox.warning(
-            None,
-            "Atualização Necessária",
-            f"Nova versão {versao_minima} disponível!\n"
-            f"Sua versão: {VERSAO_ATUAL}\n\n"
-            "Baixe a atualização no link enviado."
-        )
-        sys.exit()
-    
-    splash.set_progress(55)
-    
-    apply_stylesheet(app, theme='dark_blue.xml')
-    
-    splash.set_progress(80)
-    
-    window = App()
-    
-    splash.set_progress(100)
-    time.sleep(0.4)
-    
-    splash.close()
-    window.showMaximized()
-    sys.exit(app.exec())
+        window.showMaximized()
+        sys.exit(app.exec())
