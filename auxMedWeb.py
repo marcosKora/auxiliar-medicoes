@@ -762,19 +762,24 @@ def executar_automacao(ids_processar):
                 # clicar para espelhar a requisição
                 if not clicar_com_retry("[title='Transferir']", By.CSS_SELECTOR, "Botão Transferir"): continue
 
-                # Espera INTELIGENTE: sai assim que o campo do hospital aparecer
+                # Espera INTELIGENTE: sai assim que o campo do hospital aparecer COM VALOR
                 try:
                     WebDriverWait(driver, 15).until(
-                        EC.presence_of_element_located((By.ID, "M0:46:1:3:2:1:1[1,16]_c"))
+                        lambda d: (
+                            d.find_elements(By.ID, "M0:46:1:3:2:1:1[1,16]_c") and
+                            json.loads(d.find_element(By.ID, "M0:46:1:3:2:1:1[1,16]_c").get_attribute("lsdata")).get("21", {}).get("value", "") != ""
+                        )
                     )
                 except:
-                    atualizar_log_frontend("Timeout: campos não carregaram após Transferir", "error")
+                    atualizar_log_frontend("Timeout: campo hospital não carregou após Transferir", "error")
                     continue
                 
                  # tratamento de erro para verificar se a solicitação espelhou corretamente (hospital correto e como serviço), caso tenha espelhado corretamente, segue o processo normalmente, caso contrário, manda automaticamente para o solicitante no v360.
                 # parte especifica de verificar se o hospital está correto, de acordo com a unidade da medição
                 try:
                     # PRIMEIRO: Verifica Unidade (hospital)
+                    wait.until(EC.presence_of_element_located((By.ID, "M0:46:1:3:2:1:1[1,16]_c")))
+                    time.sleep(0.5)
                     json_data = driver.execute_script('return document.getElementById("M0:46:1:3:2:1:1[1,16]_c").getAttribute("lsdata");')
                     nome_campo = json.loads(json_data).get("21", {}).get("value", "")
                     
