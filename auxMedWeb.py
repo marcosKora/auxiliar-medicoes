@@ -402,7 +402,7 @@ def executar_automacao(ids_processar):
         campo_pesquisa = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[placeholder='Pesquisar...']")))
         campo_pesquisa.clear()
         campo_pesquisa.send_keys(id_v360)
-        esperar_elemento(By.CSS_SELECTOR, "span.bg-slate-100", 10)
+        time.sleep(1.5)
         
         # pegar o número do pedido
         try:
