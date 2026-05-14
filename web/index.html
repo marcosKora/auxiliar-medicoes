@@ -93,9 +93,8 @@
                     <div class="flex items-center gap-2"><span class="metric-label">Fila</span><span id="metric-fila" class="metric-badge">0</span></div>
                 </div>
                 
-                <div class="flex-1 overflow-y-auto p-6">
+                <div class="flex-1 overflow-y-auto p-6" style="max-height: calc(100vh - 250px);">
                     <div id="log-container" class="font-mono text-xs space-y-1.5 leading-relaxed">
-                        <p class="log-line">Sistema inicializado.</p>
                         <p class="log-line">Aguardando IDs para processamento.</p>
                     </div>
                 </div>
@@ -291,7 +290,7 @@
             const ids = tx.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
             if (!ids.length) { alert('Nenhum ID válido.'); return; }
             metricasSessao = { sucesso: 0, erro: 0, solicitante: 0, total: ids.length };
-            cacheSucesso = []; cacheErro = []; cacheSolicitante = [];
+            // NÃO limpa cacheSucesso, cacheErro, cacheSolicitante
             updateMetrics(0, 0, 0, ids.length);
             document.getElementById('progress-container').classList.remove('hidden');
             document.getElementById('progress-bar').style.width = '0%';
