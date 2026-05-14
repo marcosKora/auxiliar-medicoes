@@ -3,541 +3,311 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MEDIÇÕES v3.0 - Automação de Processos</title>
+    <title>KORA SAÚDE — Automação de Medições v3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-  a          theme: {aaaaaaaaaa
-                extend: {
-   aaa                     dark: {
-                            900: '#0a0e17',
-                            800: '#0d1b2a',
-                            700: '#1a2d44',aa
-    aa a                       600: '#1b3a5c',
-                            500: '#1b5a8a',
-                            400:a#5a7a9a',a
-                            300: '#8fa3b8',a
-                            200: '#c5d1dc',
-                            100: '#e8edf2',
-                        },
-                        accent: {
-                            blue: '#123b51',
-                            green: '#27ae60',
-                            red: '#c0392b',
-                            orange: '#e67e22',
-                            purple: '#8e44ad',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
     <script type="text/javascript" src="/eel.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
-        
-        /* Scrollbar personalizada */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0d1b2a; }
-        ::-webkit-scrollbar-thumb { background: #1b3a5c; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #1b5a8a; }
-        
-        /* Animações */
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        
-        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-        .animate-slide-in { animation: slideIn 0.4s ease-out; }
-        
-        /* Progress bar */
-        .progress-bar { transition: width 0.3s ease; }
-        
-        /* Gradientes */
-        .gradient-sidebar { background: linear-gradient(180deg, #0d1b2a 0%, #0a0e17 100%); }
-        .gradient-accent { background: linear-gradient(135deg, #1b3a5c 0%, #123b51 100%); }
-        
-        /* Tab ativa */
-        .tab-active { background: #123b51 !important; color: white !important; border-bottom: 2px solid #1b5a8a !important; }
-        
-        /* Input focus */
-        input:focus, textarea:focus, select:focus { outline: none; border-color: #123b51 !important; box-shadow: 0 0 0 2px rgba(18, 59, 81, 0.3); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Inter',sans-serif;background:#121212;color:#b3b3b3}
+        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#282828;border-radius:2px}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.75}}
+        .animate-in{animation:fadeIn .2s ease-out}
+        .animate-down{animation:slideDown .25s ease-out}
+        .animate-up{animation:slideUp .3s ease-out}
+        .progress-bar{transition:width .3s ease}
+        .font-mono{font-family:'JetBrains Mono',monospace}
+        .modal-box{max-height:75vh;overflow-y:auto}
+        .btn-start{background:#1a1a1a;color:#b3b3b3;border:1px solid #333;font-weight:500;border-radius:6px;padding:10px 24px;font-size:13px;letter-spacing:.5px;transition:all .15s}
+        .btn-start:hover{background:#222;color:#fff;border-color:#444;animation:pulse 1.5s ease-in-out}
+        .card-hover{transition:all .15s;display:flex;align-items:center;justify-content:space-between;padding:14px 16px}
+        .card-hover:hover{border-color:#444!important;animation:pulse 2s ease-in-out}
+        .nav-btn{transition:all .15s}
+        .nav-btn:hover{animation:pulse 1.8s ease-in-out}
+        .metric-badge{font-size:14px;font-weight:500;line-height:1;color:#fff}
+        .metric-label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#6a6a6a}
+        .log-line{color:#4a4a4a;transition:color .3s}
+        .log-line.active{color:#e0e0e0}
+        .log-line.done{color:#888}
     </style>
 </head>
-<body class="bg-dark-900 text-gray-200 min-h-screen">
+<body class="min-h-screen flex flex-col">
     
-    <!-- Splash Screen -->
-    <div id="splash" class="fixed inset-0 bg-dark-800 z-50 flex flex-col items-center justify-center">
-        <div class="text-center animate-fade-in">
-            <h1 class="text-5xl font-light text-white mb-4 tracking-wider">MEDICOES</h1>
-            <div class="w-48 h-px bg-dark-500 mx-auto my-6"></div>
-            <p class="text-dark-400 text-sm mb-8">Automacao de Processos</p>
-            
-            <!-- Barra de progresso -->
-            <div class="w-64 h-1 bg-dark-700 rounded-full mx-auto overflow-hidden">
-                <div id="splash-progress" class="h-full bg-dark-500 rounded-full progress-bar" style="width: 0%"></div>
+    <div id="splash" class="fixed inset-0 bg-[#121212] z-50 flex items-center justify-center">
+        <div class="text-center">
+            <p class="text-white text-xs font-semibold tracking-[.3em] uppercase mb-4 opacity-70">Kora Saúde</p>
+            <h1 class="text-3xl font-light text-white tracking-tight mb-8">Automação de Medições</h1>
+            <div class="w-48 h-px bg-[#333] mx-auto mb-8"></div>
+            <div class="w-72 h-0.5 bg-[#222] rounded-full mx-auto overflow-hidden">
+                <div id="splash-progress" class="h-full bg-white rounded-full progress-bar" style="width:0%"></div>
             </div>
-            
-            <p id="splash-status" class="text-dark-400 text-xs mt-3">Iniciando...</p>
-            <p class="text-dark-600 text-xs mt-8">v3.0.0 | Kora Saude</p>
+            <p id="splash-status" class="text-[#6a6a6a] text-xs mt-4 tracking-wider uppercase">Inicializando</p>
         </div>
     </div>
 
-    <!-- Main App (hidden initially) -->
-    <div id="main-app" class="hidden flex h-screen">
+    <div id="main-app" class="hidden flex-1 flex flex-col">
         
-        <!-- Sidebar -->
-        <aside class="w-64 gradient-sidebar border-r border-dark-700 flex flex-col">
-            <!-- Logo -->
-            <div class="p-6 text-center">
-                <h2 class="text-xl font-bold text-white tracking-wide">AUTOMAÇÃO</h2>
-                <p class="text-dark-400 text-xs mt-1">Painel de Controle</p>
+        <header class="bg-[#181818] border-b border-[#282828] px-8 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-6">
+                <span class="text-white font-bold text-sm tracking-tight opacity-80">KORA SAÚDE</span>
+                <span class="text-[#6a6a6a] text-xs">Automação de Medições v3.0</span>
             </div>
-            
-            <!-- Métricas em tempo real -->
-            <div class="mx-4 mb-4 p-3 bg-dark-700/50 rounded-lg border border-dark-600/30">
-                <div class="space-y-1 text-sm font-mono">
-                    <div class="flex justify-between">
-                        <span class="text-dark-300">Total:</span>
-                        <span id="metric-total" class="text-white font-semibold">0</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-dark-300">Sucesso:</span>
-                        <span id="metric-success" class="text-green-400 font-semibold">0</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-dark-300">Solicitante:</span>
-                        <span id="metric-solicitante" class="text-orange-400 font-semibold">0</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-dark-300">Erro:</span>
-                        <span id="metric-error" class="text-red-400 font-semibold">0</span>
-                    </div>
-                    <div class="flex justify-between border-t border-dark-600/30 pt-1 mt-1">
-                        <span class="text-dark-300">Fila:</span>
-                        <span id="metric-fila" class="text-blue-300 font-semibold">0</span>
-                    </div>
-                </div>
+            <div class="flex items-center gap-6">
+                <button onclick="iniciarProcesso()" class="btn-start nav-btn">Iniciar</button>
+                <button onclick="toggleConfig()" class="text-[#b3b3b3] hover:text-white text-sm transition-colors tracking-wide nav-btn">Configurações</button>
+                <button onclick="limparLogs()" class="text-[#6a6a6a] hover:text-white text-sm transition-colors tracking-wide nav-btn">Limpar</button>
             </div>
-            
-            <!-- Progresso -->
-            <div class="mx-4 mb-4" id="progress-container" style="display: none;">
-                <p id="progress-label" class="text-dark-400 text-xs mb-2 text-center">Pronto para iniciar</p>
-                <div class="w-full bg-dark-700 rounded-full h-2 overflow-hidden">
-                    <div id="progress-bar" class="h-full gradient-accent rounded-full progress-bar" style="width: 0%"></div>
-                </div>
-            </div>
-            
-            <!-- Botão Configurações -->
-            <div class="mx-4 mb-4">
-                <button onclick="toggleConfig()" class="w-full py-2 px-4 bg-dark-700/50 hover:bg-dark-600/50 rounded-lg border border-dark-600/30 text-dark-200 text-sm transition-all duration-200">
-                    ⚙️ Configurações
-                </button>
-            </div>
-            
-            <!-- Filtros de Métricas (aparece na tab métricas) -->
-            <div id="filtros-metricas" class="mx-4 hidden">
-                <select id="metricas-select" onchange="loadMetricas()" class="w-full bg-dark-700 text-dark-200 text-xs p-2 rounded border border-dark-600/30 mb-2">
-                    <option value="sessao">🔄 Sessão Atual</option>
-                    <option value="hoje">📅 Hoje</option>
-                    <option value="ontem">📅 Ontem</option>
-                    <option value="data">📅 Selecionar Data</option>
-                    <option value="periodo">📅 Período</option>
-                </select>
-                
-                <div id="datas-filtro" class="hidden space-y-2">
-                    <input type="text" id="data-inicio" placeholder="dd/mm/aaaa" class="w-full bg-dark-700 text-dark-200 text-xs p-2 rounded border border-dark-600/30">
-                    <input type="text" id="data-fim" placeholder="dd/mm/aaaa" class="w-full bg-dark-700 text-dark-200 text-xs p-2 rounded border border-dark-600/30 hidden">
-                </div>
-            </div>
-            
-            <div class="flex-1"></div>
-            
-            <!-- Rodapé Sidebar -->
-            <div class="p-4 text-center border-t border-dark-700">
-                <p class="text-dark-600 text-xs">Kora Saúde © 2025</p>
-            </div>
-        </aside>
+        </header>
         
-        <!-- Main Content -->
-        <main class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex-1 flex overflow-hidden">
             
-            <!-- Header -->
-            <header class="bg-dark-800 border-b border-dark-700 p-4">
-                <div class="flex justify-between items-center">
-                    <h1 class="text-lg font-semibold text-white">🚀 Painel de Controle</h1>
-                    <div class="flex space-x-2">
-                        <button onclick="limparLogs()" class="px-3 py-1 text-xs bg-dark-700 hover:bg-dark-600 text-dark-300 rounded border border-dark-600/30 transition-all">
-                            🧹 Limpar Logs
-                        </button>
+            <div class="w-[400px] bg-[#181818] border-r border-[#282828] flex flex-col p-6 gap-4">
+                <div class="flex-1 flex flex-col">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[#6a6a6a] text-xs font-semibold tracking-[.15em] uppercase">IDs para Processar</span>
+                        <span id="ids-count" class="text-[#6a6a6a] text-xs">0 IDs</span>
+                    </div>
+                    <textarea id="ids-input" placeholder="Cole os IDs aqui&#10;Um por linha" class="flex-1 w-full bg-[#121212] border border-[#282828] rounded-md p-4 text-[#e0e0e0] font-mono text-xs resize-none outline-none focus:border-white/20 transition-all placeholder:text-[#444]"></textarea>
+                </div>
+                <div id="progress-container" class="hidden">
+                    <div class="flex justify-between text-xs text-[#6a6a6a] mb-2">
+                        <span id="progress-label">Processando...</span>
+                        <span id="progress-percent">0%</span>
+                    </div>
+                    <div class="w-full bg-[#121212] rounded-full h-2 overflow-hidden">
+                        <div id="progress-bar" class="h-full bg-white/60 rounded-full progress-bar" style="width:0%"></div>
                     </div>
                 </div>
-            </header>
-            
-            <!-- Tabs Navigation -->
-            <nav class="bg-dark-800 border-b border-dark-700 flex">
-                <button onclick="switchTab('entrada')" id="tab-entrada" class="tab-active px-6 py-3 text-sm font-medium transition-all">Entrada de IDs</button>
-                <button onclick="switchTab('log')" id="tab-log" class="px-6 py-3 text-sm font-medium text-dark-400 hover:text-dark-200 transition-all">Log de Execução</button>
-                <button onclick="switchTab('sucesso')" id="tab-sucesso" class="px-6 py-3 text-sm font-medium text-dark-400 hover:text-dark-200 transition-all">Pedidos Prontos</button>
-                <button onclick="switchTab('solicitante')" id="tab-solicitante" class="px-6 py-3 text-sm font-medium text-dark-400 hover:text-dark-200 transition-all">Enviados ao Solicitante</button>
-                <button onclick="switchTab('erro')" id="tab-erro" class="px-6 py-3 text-sm font-medium text-dark-400 hover:text-dark-200 transition-all">IDs com Erro</button>
-                <button onclick="switchTab('metricas')" id="tab-metricas" class="px-6 py-3 text-sm font-medium text-dark-400 hover:text-dark-200 transition-all">📊 Métricas</button>
-                <button onclick="iniciarProcesso()" class="px-8 py-3 text-sm font-bold text-white gradient-accent hover:opacity-90 transition-all ml-auto">
-                    ▶ INICIAR
-                </button>
-            </nav>
-            
-            <!-- Tab Content -->
-            <div class="flex-1 overflow-y-auto p-6">
-                
-                <!-- Tab Entrada -->
-                <div id="content-entrada" class="animate-fade-in">
-                    <textarea id="ids-input" 
-                              placeholder="# Cole os IDs aqui (um por linha)"
-                              class="w-full h-64 bg-dark-800 border border-dark-600 rounded-lg p-4 text-dark-100 font-mono text-sm resize-none"></textarea>
-                </div>
-                
-                <!-- Tab Log -->
-                <div id="content-log" class="hidden animate-fade-in">
-                    <div id="log-container" class="bg-dark-800 border border-dark-600 rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm space-y-1">
-                        <p class="text-dark-400">Aguardando início do processo...</p>
-                    </div>
-                </div>
-                
-                <!-- Tab Sucesso -->
-                <div id="content-sucesso" class="hidden animate-fade-in">
-                    <div id="sucesso-container" class="bg-dark-800 border border-green-700 rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm text-green-400 space-y-1">
-                        <p class="text-dark-400">Nenhum pedido processado ainda.</p>
-                    </div>
-                </div>
-                
-                <!-- Tab Solicitante -->
-                <div id="content-solicitante" class="hidden animate-fade-in">
-                    <div id="solicitante-container" class="bg-dark-800 border border-orange-700 rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm text-orange-400 space-y-1">
-                        <p class="text-dark-400">Nenhum envio ao solicitante ainda.</p>
-                    </div>
-                </div>
-                
-                <!-- Tab Erro -->
-                <div id="content-erro" class="hidden animate-fade-in">
-                    <div id="erro-container" class="bg-dark-800 border border-red-700 rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm text-red-400 space-y-1">
-                        <p class="text-dark-400">Nenhum erro registrado ainda.</p>
-                    </div>
-                </div>
-                
-                <!-- Tab Métricas -->
-                <div id="content-metricas" class="hidden animate-fade-in">
-                    <div class="bg-dark-800 border border-dark-600 rounded-lg p-8 text-center">
-                        <h3 class="text-2xl font-bold text-white mb-4" id="metricas-resumo">Sucesso: 0 | Solicitante: 0 | Erro: 0 | Total: 0</h3>
-                        <p class="text-dark-400 text-sm" id="metricas-data-info"></p>
-                    </div>
-                </div>
-                
             </div>
-        </main>
+            
+            <div class="flex-1 flex flex-col overflow-hidden bg-[#121212]">
+                
+                <div class="bg-[#181818] border-b border-[#282828] px-6 py-3 flex items-center gap-10">
+                    <div class="flex items-center gap-2"><span class="metric-label">Total</span><span id="metric-total" class="metric-badge">0</span></div>
+                    <div class="flex items-center gap-2"><span class="metric-label">Sucesso</span><span id="metric-success" class="metric-badge">0</span></div>
+                    <div class="flex items-center gap-2"><span class="metric-label">Solicitante</span><span id="metric-solicitante" class="metric-badge">0</span></div>
+                    <div class="flex items-center gap-2"><span class="metric-label">Erro</span><span id="metric-error" class="metric-badge">0</span></div>
+                    <div class="flex items-center gap-2"><span class="metric-label">Fila</span><span id="metric-fila" class="metric-badge">0</span></div>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div id="log-container" class="font-mono text-xs space-y-1.5 leading-relaxed">
+                        <p class="log-line">Sistema inicializado.</p>
+                        <p class="log-line">Aguardando IDs para processamento.</p>
+                    </div>
+                </div>
+                
+                <div class="bg-[#181818] border-t border-[#282828] px-6 py-3 flex gap-3">
+                    <div onclick="openModal('sucesso')" class="flex-1 bg-[#121212] border border-[#282828] rounded-md card-hover cursor-pointer">
+                        <span class="text-[#b3b3b3] text-xs uppercase tracking-wider font-medium">Pedidos Prontos</span>
+                        <span class="text-[#6a6a6a] text-xs">Abrir →</span>
+                    </div>
+                    <div onclick="openModal('solicitante')" class="flex-1 bg-[#121212] border border-[#282828] rounded-md card-hover cursor-pointer">
+                        <span class="text-[#b3b3b3] text-xs uppercase tracking-wider font-medium">Solicitante</span>
+                        <span class="text-[#6a6a6a] text-xs">Abrir →</span>
+                    </div>
+                    <div onclick="openModal('erro')" class="flex-1 bg-[#121212] border border-[#282828] rounded-md card-hover cursor-pointer">
+                        <span class="text-[#b3b3b3] text-xs uppercase tracking-wider font-medium">IDs com Erro</span>
+                        <span class="text-[#6a6a6a] text-xs">Abrir →</span>
+                    </div>
+                    <div onclick="openModal('metricas')" class="flex-1 bg-[#121212] border border-[#282828] rounded-md card-hover cursor-pointer">
+                        <span class="text-[#b3b3b3] text-xs uppercase tracking-wider font-medium">Métricas</span>
+                        <span class="text-[#6a6a6a] text-xs">Abrir →</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Modal Configurações -->
-    <div id="config-modal" class="hidden fixed inset-0 bg-black/50 z-40 flex items-center justify-center">
-        <div class="bg-dark-800 border border-dark-600 rounded-lg p-6 w-96 animate-fade-in">
-            <h2 class="text-xl font-bold text-white mb-4">⚙️ Configurações</h2>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="text-dark-300 text-sm font-semibold">VIRTUAL 360</label>
-                    <input type="text" id="cfg-v360-user" placeholder="E-mail V360" class="w-full bg-dark-700 text-dark-200 p-2 rounded border border-dark-600/30 mt-1">
-                    <input type="password" id="cfg-v360-pass" placeholder="Senha V360" class="w-full bg-dark-700 text-dark-200 p-2 rounded border border-dark-600/30 mt-1">
-                </div>
-                
-                <div>
-                    <label class="text-dark-300 text-sm font-semibold">SAP</label>
-                    <input type="text" id="cfg-sap-user" placeholder="Usuário SAP" class="w-full bg-dark-700 text-dark-200 p-2 rounded border border-dark-600/30 mt-1">
-                    <input type="password" id="cfg-sap-pass" placeholder="Senha SAP" class="w-full bg-dark-700 text-dark-200 p-2 rounded border border-dark-600/30 mt-1">
-                </div>
-                
-                <div>
-                    <label class="text-dark-300 text-sm font-semibold">KORA MEDIÇÕES</label>
-                    <input type="password" id="cfg-kora-pass" placeholder="Senha Kora Medições" class="w-full bg-dark-700 text-dark-200 p-2 rounded border border-dark-600/30 mt-1">
-                </div>
+    <div id="detail-modal" class="hidden fixed inset-0 bg-black/80 z-40 flex items-center justify-center p-8">
+        <div class="bg-[#181818] border border-[#282828] rounded-lg w-full max-w-2xl animate-up shadow-2xl">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-[#282828]">
+                <h3 id="modal-title" class="text-white font-semibold text-sm tracking-wide uppercase">Detalhes</h3>
+                <button onclick="closeModal()" class="text-[#6a6a6a] hover:text-white text-lg transition-colors">&times;</button>
             </div>
-            
-            <div class="flex justify-end space-x-2 mt-6">
-                <button onclick="toggleConfig()" class="px-4 py-2 bg-dark-700 text-dark-300 rounded hover:bg-dark-600 transition-all">Cancelar</button>
-                <button onclick="salvarCredenciais()" class="px-4 py-2 bg-accent-blue text-white rounded hover:opacity-90 transition-all">Salvar</button>
+            <div id="modal-content" class="p-6 font-mono text-xs space-y-1.5 leading-relaxed modal-box text-[#b3b3b3]"></div>
+        </div>
+    </div>
+
+    <div id="config-modal" class="hidden fixed inset-0 bg-black/80 z-40 flex items-center justify-center">
+        <div class="bg-[#181818] border border-[#282828] rounded-lg p-8 w-96 animate-down shadow-2xl">
+            <h2 class="text-white font-semibold text-lg mb-6 tracking-tight">Configurações de Acesso</h2>
+            <div class="space-y-4">
+                <div><label class="text-[#6a6a6a] text-xs font-semibold tracking-wider uppercase block mb-1.5">Virtual 360</label><input type="text" id="cfg-v360-user" placeholder="E-mail" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20"><input type="password" id="cfg-v360-pass" placeholder="Senha" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20 mt-2"></div>
+                <div><label class="text-[#6a6a6a] text-xs font-semibold tracking-wider uppercase block mb-1.5">SAP</label><input type="text" id="cfg-sap-user" placeholder="Usuário" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20"><input type="password" id="cfg-sap-pass" placeholder="Senha" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20 mt-2"></div>
+                <div><label class="text-[#6a6a6a] text-xs font-semibold tracking-wider uppercase block mb-1.5">Kora Medições</label><input type="password" id="cfg-kora-pass" placeholder="Senha" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20"></div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="toggleConfig()" class="px-5 py-2.5 text-sm text-[#b3b3b3] hover:text-white transition-colors tracking-wide uppercase">Cancelar</button>
+                <button onclick="salvarCredenciais()" class="px-6 py-2.5 text-sm font-semibold bg-white text-black rounded-md hover:bg-gray-200 transition-all tracking-wide uppercase">Salvar</button>
             </div>
         </div>
     </div>
 
     <script>
-        // === GLOBAL STATE ===
-        let currentTab = 'entrada';
         let metricasSessao = { sucesso: 0, erro: 0, solicitante: 0, total: 0 };
+        let cacheSucesso = [], cacheErro = [], cacheSolicitante = [];
         
-        // === SPLASH SCREEN ===
         async function initApp() {
-            updateSplash(10, 'Verificando acesso...');
-            
-            const acesso = await eel.verificar_acesso()();
-            if (!acesso) {
-                alert('Acesso Negado! Entre em contato com o administrador.');
-                window.close();
-                return;
-            }
-            
-            updateSplash(40, 'Verificando versão...');
-            const versoes = await eel.get_versao()();
-            
-            if (versoes.minima > versoes.atual) {
-                alert(`Nova versão ${versoes.minima} disponível!\nSua versão: ${versoes.atual}\n\nBaixe a atualização.`);
-                window.close();
-                return;
-            }
-            
-            updateSplash(70, 'Carregando configurações...');
-            
-            // Carrega credenciais
-            const creds = await eel.get_credenciais()();
-            document.getElementById('cfg-v360-user').value = creds.V360_USER || '';
-            document.getElementById('cfg-v360-pass').value = creds.V360_PASS || '';
-            document.getElementById('cfg-sap-user').value = creds.SAP_USER || '';
-            document.getElementById('cfg-sap-pass').value = creds.SAP_PASS || '';
-            document.getElementById('cfg-kora-pass').value = creds.KORA_MED_PASS || '';
-            
-            updateSplash(90, 'Preparando interface...');
-            
-            setTimeout(() => {
-                updateSplash(100, 'Pronto!');
-                setTimeout(() => {
-                    document.getElementById('splash').style.display = 'none';
-                    document.getElementById('main-app').classList.remove('hidden');
-                }, 400);
-            }, 500);
+            updateSplash(10, 'Verificando acesso');
+            if (!await eel.verificar_acesso()()) { alert('Acesso Negado.'); window.close(); return; }
+            updateSplash(35, 'Verificando versão');
+            const v = await eel.get_versao()();
+            if (v.minima > v.atual) { alert('Atualização necessária.'); window.close(); return; }
+            updateSplash(60, 'Carregando');
+            const c = await eel.get_credenciais()();
+            document.getElementById('cfg-v360-user').value = c.V360_USER || '';
+            document.getElementById('cfg-v360-pass').value = c.V360_PASS || '';
+            document.getElementById('cfg-sap-user').value = c.SAP_USER || '';
+            document.getElementById('cfg-sap-pass').value = c.SAP_PASS || '';
+            document.getElementById('cfg-kora-pass').value = c.KORA_MED_PASS || '';
+            updateSplash(90, 'Pronto');
+            setTimeout(() => { updateSplash(100, 'Concluído'); setTimeout(() => { document.getElementById('splash').style.display = 'none'; document.getElementById('main-app').classList.remove('hidden'); }, 300); }, 400);
         }
-        
-        function updateSplash(percent, status) {
-            document.getElementById('splash-progress').style.width = percent + '%';
-            document.getElementById('splash-status').textContent = status;
-        }
-        
-        // === TAB SWITCHING ===
-        function switchTab(tabName) {
-            // Remove active from all tabs
-            document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.remove('tab-active'));
-            document.querySelectorAll('[id^="content-"]').forEach(c => c.classList.add('hidden'));
-            
-            // Set active
-            document.getElementById('tab-' + tabName).classList.add('tab-active');
-            document.getElementById('content-' + tabName).classList.remove('hidden');
-            
-            currentTab = tabName;
-            
-            // Show/hide filtros de métricas
-            document.getElementById('filtros-metricas').classList.toggle('hidden', tabName !== 'metricas');
-            
-            if (tabName === 'metricas') loadMetricas();
-        }
-        
-        // === CONFIGURAÇÕES ===
-        function toggleConfig() {
-            document.getElementById('config-modal').classList.toggle('hidden');
-        }
-        
+        function updateSplash(p, s) { document.getElementById('splash-progress').style.width = p + '%'; document.getElementById('splash-status').textContent = s; }
+        function toggleConfig() { document.getElementById('config-modal').classList.toggle('hidden'); }
         async function salvarCredenciais() {
-            const creds = {
-                'V360_USER': document.getElementById('cfg-v360-user').value,
-                'V360_PASS': document.getElementById('cfg-v360-pass').value,
-                'SAP_USER': document.getElementById('cfg-sap-user').value,
-                'SAP_PASS': document.getElementById('cfg-sap-pass').value,
-                'KORA_MED_PASS': document.getElementById('cfg-kora-pass').value
-            };
-            
-            for (const [key, value] of Object.entries(creds)) {
-                await eel.save_credencial(key, value)();
-            }
-            
-            alert('Credenciais salvas!');
-            toggleConfig();
+            const c = { 'V360_USER': document.getElementById('cfg-v360-user').value, 'V360_PASS': document.getElementById('cfg-v360-pass').value, 'SAP_USER': document.getElementById('cfg-sap-user').value, 'SAP_PASS': document.getElementById('cfg-sap-pass').value, 'KORA_MED_PASS': document.getElementById('cfg-kora-pass').value };
+            for (const [k, v] of Object.entries(c)) await eel.save_credencial(k, v)();
+            alert('Credenciais salvas.'); toggleConfig();
         }
         
-        // === LOGS ===
         eel.expose(addLog);
-        function addLog(timestamp, mensagem, tipo = 'info') {
-            const colors = {
-                'info': 'text-dark-200',
-                'success': 'text-green-400',
-                'error': 'text-red-400',
-                'warning': 'text-orange-400'
-            };
-            
-            const logDiv = document.getElementById('log-container');
-            const entry = document.createElement('p');
-            entry.className = `animate-fade-in ${colors[tipo] || 'text-dark-200'}`;
-            entry.textContent = `[${timestamp}] ${mensagem}`;
-            
-            // Remove placeholder if exists
-            if (logDiv.querySelector('.text-dark-400')) {
-                logDiv.innerHTML = '';
-            }
-            
-            logDiv.appendChild(entry);
-            logDiv.scrollTop = logDiv.scrollHeight;
-
+        function addLog(ts, msg, tipo = 'info') {
+            const d = document.getElementById('log-container');
+            const e = document.createElement('p');
+            e.className = 'log-line active';
+            e.textContent = `[${ts}] ${msg}`;
+            if (d.querySelector('.log-line') && d.children.length <= 2 && d.querySelector('.log-line').textContent.includes('Aguardando')) d.innerHTML = '';
+            d.appendChild(e); d.scrollTop = d.scrollHeight;
+            setTimeout(() => { e.classList.remove('active'); e.classList.add('done'); }, 3000);
         }
 
-
-        // === REGISTRAR PEDIDOS PRONTOS (com ID e número do pedido) ===
         eel.expose(addPedidoPronto);
-        function addPedidoPronto(timestamp, id_v360, num_pedido) {
-            const container = document.getElementById('sucesso-container');
-            const placeholder = container.querySelector('.text-dark-400');
-            if (placeholder) placeholder.remove();
-            
-            const entry = document.createElement('p');
-            entry.className = 'animate-fade-in text-green-400 border-b border-dark-700/30 pb-1 mb-1';
-            entry.innerHTML = `<span class="text-dark-400">[${timestamp}]</span> <span class="text-white font-semibold">ID: ${id_v360}</span> - <span class="text-green-300">Pedido: ${num_pedido}</span>`;
-            container.appendChild(entry);
-            container.scrollTop = container.scrollHeight;
+        function addPedidoPronto(ts, id, pedido, secs = 0) {
+            let tf = secs > 0 ? (Math.floor(secs/60) > 0 ? `(${Math.floor(secs/60)}m ${Math.round(secs%60)}s)` : `(${Math.round(secs)}s)`) : '';
+            cacheSucesso.push({ts, id, info: `${pedido} ${tf}`});
+            if (cacheSucesso.length > 50) cacheSucesso.shift();
         }
 
         eel.expose(addErro);
-        function addErro(timestamp, id_v360, mensagem) {
-            const container = document.getElementById('erro-container');
-            const placeholder = container.querySelector('.text-dark-400');
-            if (placeholder) placeholder.remove();
-            
-            const entry = document.createElement('p');
-            entry.className = 'animate-fade-in text-red-400 border-b border-dark-700/30 pb-1 mb-1';
-            entry.innerHTML = `<span class="text-dark-400">[${timestamp}]</span> <span class="text-white font-semibold">ID: ${id_v360}</span> - <span class="text-red-300">${mensagem}</span>`;
-            container.appendChild(entry);
-            container.scrollTop = container.scrollHeight;
-        }
+        function addErro(ts, id, msg) { cacheErro.push({ts, id, info: msg}); if (cacheErro.length > 50) cacheErro.shift(); }
 
         eel.expose(addSolicitante);
-        function addSolicitante(timestamp, id_v360, mensagem) {
-            const container = document.getElementById('solicitante-container');
-            const placeholder = container.querySelector('.text-dark-400');
-            if (placeholder) placeholder.remove();
-            
-            const entry = document.createElement('p');
-            entry.className = 'animate-fade-in text-orange-400 border-b border-dark-700/30 pb-1 mb-1';
-            entry.innerHTML = `<span class="text-dark-400">[${timestamp}]</span> <span class="text-white font-semibold">ID: ${id_v360}</span> - <span class="text-orange-300">${mensagem}</span>`;
-            container.appendChild(entry);
-            container.scrollTop = container.scrollHeight;
-        }
+        function addSolicitante(ts, id, msg) { cacheSolicitante.push({ts, id, info: msg}); if (cacheSolicitante.length > 50) cacheSolicitante.shift(); }
         
-        function addToTab(containerId, timestamp, mensagem) {
-            const container = document.getElementById(containerId);
-            if (container.querySelector('.text-dark-400')) {
-                container.innerHTML = '';
-            }
-            const entry = document.createElement('p');
-            entry.className = 'animate-fade-in';
-            entry.textContent = `[${timestamp}] ${mensagem}`;
-            container.appendChild(entry);
-            container.scrollTop = container.scrollHeight;
-        }
-        
-        // === PROGRESS ===
-        eel.expose(updateProgress);
-        function updateProgress(atual, total) {
-            const percent = Math.round((atual / total) * 100);
-            document.getElementById('progress-container').style.display = 'block';
-            document.getElementById('progress-bar').style.width = percent + '%';
-            document.getElementById('progress-label').textContent = `Processando ${atual} de ${total} (${percent}%)`;
+        function openModal(tipo) {
+            const titles = { 'sucesso': 'Pedidos Prontos', 'solicitante': 'Enviados ao Solicitante', 'erro': 'IDs com Erro', 'metricas': 'Métricas' };
+            document.getElementById('modal-title').textContent = titles[tipo] || 'Detalhes';
+            const content = document.getElementById('modal-content');
             
-            if (atual >= total) {
-                setTimeout(() => {
-                    document.getElementById('progress-container').style.display = 'none';
-                    document.getElementById('progress-label').textContent = 'Pronto para iniciar';
-                }, 2000);
-            }
-        }
-        
-        // === MÉTRICAS ===
-        eel.expose(updateMetrics);
-        function updateMetrics(sucesso, erro, solicitante, total) {
-            metricasSessao = { sucesso, erro, solicitante, total };
-            
-            document.getElementById('metric-success').textContent = sucesso;
-            document.getElementById('metric-error').textContent = erro;
-            document.getElementById('metric-solicitante').textContent = solicitante;
-            document.getElementById('metric-total').textContent = total;
-            document.getElementById('metric-fila').textContent = total - (sucesso + erro + solicitante);
-        }
-        
-        async function loadMetricas() {
-            const select = document.getElementById('metricas-select');
-            const opcao = select.value;
-            
-            const datasFiltro = document.getElementById('datas-filtro');
-            datasFiltro.classList.toggle('hidden', !['data', 'periodo'].includes(opcao));
-            document.getElementById('data-fim').classList.toggle('hidden', opcao !== 'periodo');
-            
-            let metricas;
-            if (opcao === 'sessao') {
-                metricas = metricasSessao;
+            if (tipo === 'metricas') {
+                content.innerHTML = `
+                    <div class="flex items-center gap-3 mb-6">
+                        <select id="modal-metricas-select" onchange="loadMetricasModal()" class="bg-[#121212] border border-[#282828] rounded-md p-2 text-[#b3b3b3] text-xs">
+                            <option value="sessao">Sessão Atual</option>
+                            <option value="hoje">Hoje</option>
+                            <option value="ontem">Ontem</option>
+                            <option value="data">Data Específica</option>
+                            <option value="periodo">Período</option>
+                        </select>
+                        <div id="modal-datas-filtro" class="hidden flex gap-2">
+                            <input type="text" id="modal-data-inicio" placeholder="Início" class="bg-[#121212] border border-[#282828] rounded-md p-2 text-[#b3b3b3] text-xs w-28">
+                            <input type="text" id="modal-data-fim" placeholder="Fim" class="bg-[#121212] border border-[#282828] rounded-md p-2 text-[#b3b3b3] text-xs w-28 hidden">
+                        </div>
+                    </div>
+                    <div id="modal-metricas-result"></div>
+                `;
+                document.getElementById('modal-metricas-select').addEventListener('change', loadMetricasModal);
+                document.getElementById('modal-data-inicio').addEventListener('input', loadMetricasModal);
+                document.getElementById('modal-data-inicio').addEventListener('keyup', function(e) { if (e.key === 'Enter') loadMetricasModal(); });
+                document.getElementById('modal-data-fim').addEventListener('input', loadMetricasModal);
+                document.getElementById('modal-data-fim').addEventListener('keyup', function(e) { if (e.key === 'Enter') loadMetricasModal(); });
+                loadMetricasModal();
             } else {
-                const dataIni = document.getElementById('data-inicio').value || null;
-                const dataFim = document.getElementById('data-fim').value || null;
-                metricas = await eel.get_metricas(opcao, dataIni, dataFim)();
+                const cache = tipo === 'sucesso' ? cacheSucesso : tipo === 'erro' ? cacheErro : cacheSolicitante;
+                content.innerHTML = cache.length === 0 
+                    ? '<p class="text-[#6a6a6a] text-sm">Nenhum registro encontrado.</p>'
+                    : cache.map(item => `<p class="border-b border-[#282828]/50 pb-1 mb-1 text-[#b3b3b3]"><span class="text-[#6a6a6a]">${item.ts}</span> <span>ID ${item.id} → ${item.info}</span></p>`).join('');
             }
-            
-            document.getElementById('metricas-resumo').textContent = 
-                `Sucesso: ${metricas.sucesso} | Solicitante: ${metricas.solicitante} | Erro: ${metricas.erro} | Total: ${metricas.total}`;
+            document.getElementById('detail-modal').classList.remove('hidden');
         }
         
-        // Selecionar data para métricas
-        document.getElementById('metricas-select').addEventListener('change', loadMetricas);
-        document.getElementById('data-inicio').addEventListener('change', loadMetricas);
-        document.getElementById('data-fim').addEventListener('change', loadMetricas);
+        async function loadMetricasModal() {
+            const op = document.getElementById('modal-metricas-select').value;
+            document.getElementById('modal-datas-filtro').classList.toggle('hidden', !['data', 'periodo'].includes(op));
+            document.getElementById('modal-data-fim').classList.toggle('hidden', op !== 'periodo');
+            const dataIni = document.getElementById('modal-data-inicio').value || null;
+            const dataFim = document.getElementById('modal-data-fim').value || null;
+            let m = op === 'sessao' ? metricasSessao : await eel.get_metricas(op, dataIni, dataFim)();
+            // SEM FILA no modal de métricas
+            document.getElementById('modal-metricas-result').innerHTML = `
+                <div class="flex items-center gap-10 justify-center">
+                    <div class="text-center"><span class="text-3xl font-light text-white">${m.total}</span><p class="text-[#6a6a6a] text-xs mt-1.5 uppercase tracking-wider">Total</p></div>
+                    <div class="w-px h-10 bg-[#282828]"></div>
+                    <div class="text-center"><span class="text-3xl font-light text-white">${m.sucesso}</span><p class="text-[#6a6a6a] text-xs mt-1.5 uppercase tracking-wider">Sucesso</p></div>
+                    <div class="w-px h-10 bg-[#282828]"></div>
+                    <div class="text-center"><span class="text-3xl font-light text-white">${m.solicitante}</span><p class="text-[#6a6a6a] text-xs mt-1.5 uppercase tracking-wider">Solicitante</p></div>
+                    <div class="w-px h-10 bg-[#282828]"></div>
+                    <div class="text-center"><span class="text-3xl font-light text-white">${m.erro}</span><p class="text-[#6a6a6a] text-xs mt-1.5 uppercase tracking-wider">Erro</p></div>
+                </div>
+            `;
+        }
         
-        // === PROCESSAMENTO ===
+        function closeModal() { document.getElementById('detail-modal').classList.add('hidden'); }
+        document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+        
+        eel.expose(updateProgress);
+        function updateProgress(a, t) {
+            const p = Math.round((a / t) * 100);
+            document.getElementById('progress-container').classList.remove('hidden');
+            document.getElementById('progress-bar').style.width = p + '%';
+            document.getElementById('progress-label').textContent = `${a} de ${t}`;
+            document.getElementById('progress-percent').textContent = p + '%';
+            if (a >= t) setTimeout(() => document.getElementById('progress-container').classList.add('hidden'), 2500);
+        }
+        
+        eel.expose(updateMetrics);
+        function updateMetrics(s, e, sol, t) {
+            metricasSessao = { sucesso: s, erro: e, solicitante: sol, total: t };
+            document.getElementById('metric-success').textContent = s;
+            document.getElementById('metric-error').textContent = e;
+            document.getElementById('metric-solicitante').textContent = sol;
+            document.getElementById('metric-total').textContent = t;
+            document.getElementById('metric-fila').textContent = t - (s + e + sol);
+        }
+        
+        document.getElementById('ids-input').addEventListener('input', function() {
+            const count = this.value.trim().split('\n').filter(l => l.trim() && !l.startsWith('#')).length;
+            document.getElementById('ids-count').textContent = count + ' IDs';
+        });
+        
         async function iniciarProcesso() {
-            const idsText = document.getElementById('ids-input').value.trim();
-            if (!idsText) {
-                alert('Insira IDs válidos!');
-                return;
-            }
-            
-            const idsList = idsText.split('\n')
-                .map(l => l.trim())
-                .filter(l => l && !l.startsWith('#'));
-            
-            if (idsList.length === 0) {
-                alert('Nenhum ID válido encontrado!');
-                return;
-            }
-            
-            // Reset metrics
-            metricasSessao = { sucesso: 0, erro: 0, solicitante: 0, total: idsList.length };
-            updateMetrics(0, 0, 0, idsList.length);
-            
-            // Show progress
-            document.getElementById('progress-container').style.display = 'block';
+            const tx = document.getElementById('ids-input').value.trim();
+            if (!tx) { alert('Insira IDs para processar.'); return; }
+            const ids = tx.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+            if (!ids.length) { alert('Nenhum ID válido.'); return; }
+            metricasSessao = { sucesso: 0, erro: 0, solicitante: 0, total: ids.length };
+            cacheSucesso = []; cacheErro = []; cacheSolicitante = [];
+            updateMetrics(0, 0, 0, ids.length);
+            document.getElementById('progress-container').classList.remove('hidden');
             document.getElementById('progress-bar').style.width = '0%';
-            document.getElementById('progress-label').textContent = 'Iniciando...';
-            
-            // Switch to log tab
-            switchTab('log');
-            
-            // Start processing
-            await eel.processar_ids(idsList)();
+            document.getElementById('log-container').innerHTML = '<p class="log-line active">Iniciando processamento...</p>';
+            await eel.processar_ids(ids)();
         }
         
         async function limparLogs() {
-            if (confirm('Deseja limpar todos os campos de entrada e logs?')) {
+            if (confirm('Limpar todos os registros?')) {
                 await eel.limpar_logs()();
                 document.getElementById('ids-input').value = '';
-                document.getElementById('log-container').innerHTML = '<p class="text-dark-400">Aguardando início do processo...</p>';
-                document.getElementById('sucesso-container').innerHTML = '<p class="text-dark-400">Nenhum pedido processado ainda.</p>';
-                document.getElementById('solicitante-container').innerHTML = '<p class="text-dark-400">Nenhum envio ao solicitante ainda.</p>';
-                document.getElementById('erro-container').innerHTML = '<p class="text-dark-400">Nenhum erro registrado ainda.</p>';
+                document.getElementById('ids-count').textContent = '0 IDs';
+                document.getElementById('log-container').innerHTML = '<p class="log-line">Sistema inicializado.</p><p class="log-line">Aguardando IDs para processamento.</p>';
+                cacheSucesso = []; cacheErro = []; cacheSolicitante = [];
             }
         }
-        
-        // === INIT ===
         window.onload = initApp;
     </script>
 </body>
