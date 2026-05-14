@@ -157,7 +157,6 @@ def save_credencial(chave, valor):
     """Salva uma credencial"""
     salvar_credencial(chave, valor)
     return True
-aaaaaaaaa
 @eel.expose
 def get_metricas(opcao="sessao", data_inicio=None, data_fim=None):
     """Retorna métricas baseado no filtro"""
