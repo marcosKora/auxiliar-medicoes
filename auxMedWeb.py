@@ -1214,9 +1214,11 @@ def executar_automacao(ids_processar):
 
 # --- INICIALIZAÇÃO ---
 if __name__ == "__main__":
+    import random
+    port = random.randint(8000, 8999)
     # Configurações da janela Eel
     eel.start('index.html', 
               mode='chrome',
               size=(1400, 900),
-              port=8000,
+              port=port,
               cmdline_args=['--start-maximized'])
