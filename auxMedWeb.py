@@ -531,7 +531,7 @@ def executar_automacao(ids_processar):
             # verificar se foi para a alçada do solicitante (seguiu) ou se ficou na mesma etapa, com logica de atualizar a pagina algumas vezes para evitar falhas de atualização do status do v360, que é bem frequente.
         status_correto = False
 
-        for tentativa in range(5):
+        for tentativa in range(7):
             elemento = esperar_elemento(By.CLASS_NAME, "checkout-bar-item-title", 3)
             
             if elemento:
@@ -543,9 +543,8 @@ def executar_automacao(ids_processar):
                 except:
                     pass
             
-            if tentativa < 4:
+            if tentativa < 6:
                 driver.refresh()
-                time.sleep(1.5)
         
         if not status_correto:
             atualizar_log_frontend(f"[FALHA] Verificar pedido e medição do id #{id_v360}", "error")
@@ -1179,7 +1178,7 @@ def executar_automacao(ids_processar):
                     # verificar se foi para a alçada do solicitante (seguiu) ou se ficou na mesma etapa, com logica de atualizar a pagina algumas vezes para evitar falhas de atualização do status do v360, que é bem frequente.
                     status_correto = False
 
-                    for tentativa in range(5):
+                    for tentativa in range(7):
                         elemento = esperar_elemento(By.CLASS_NAME, "checkout-bar-item-title", 3)
                         
                         if elemento:
@@ -1191,9 +1190,8 @@ def executar_automacao(ids_processar):
                             except:
                                 pass
                         
-                        if tentativa < 4:
+                        if tentativa < 6:
                             driver.refresh()
-                            time.sleep(1.5)
                     
                     if not status_correto:
                         atualizar_log_frontend(f"[FALHA] Verificar pedido e medição do id #{id_v360}", "error")
@@ -1202,6 +1200,7 @@ def executar_automacao(ids_processar):
                         atualizar_erro_frontend(id_v360, "Status não atualizou após tentar novamente")
                         salvar_metrica(id_v360, "erro")
                         atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+                        continue 
 
                     # --- marcar AV e FEITO no kora-medicoes.web.app ---
                     driver.switch_to.window(kora_handle)
