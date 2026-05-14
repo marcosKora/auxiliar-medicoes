@@ -99,6 +99,13 @@ def salvar_metrica(id_v, status):
         writer = csv.writer(f)
         writer.writerow([agora.strftime("%d/%m/%Y"), agora.strftime("%H:%M:%S"), id_v, status])        
 
+def formatar_data(texto):
+    """Formata data de ddmmaaaa para dd/mm/aaaa"""
+    texto = texto.strip().replace("/", "").replace(".", "").replace("-", "").replace(" ", "")
+    if len(texto) == 8 and texto.isdigit():
+        return f"{texto[0:2]}/{texto[2:4]}/{texto[4:8]}"
+    return texto
+
 # 999999: carrega metricas do csv com filtro de data
 # MODIFIQUE a função carregar_metricas para incluir 'solicitante':
 def carregar_metricas(data_inicio=None, data_fim=None):
@@ -107,7 +114,33 @@ def carregar_metricas(data_inicio=None, data_fim=None):
     
     sucesso = 0
     erro = 0
-    solicitante = 0  # NOVO
+    solicitante = 0
+    
+    # Formata as datas (aceita ddmmaaaa ou dd/mm/aaaa)
+    if data_inicio:
+        data_inicio = formatar_data(data_inicio)
+    if data_fim:
+        data_fim = formatar_data(data_fim)
+
+    # Converte strings de data para objetos date (para comparação correta)
+    from datetime import date as date_type
+    
+    data_inicio_obj = None
+    data_fim_obj = None
+    
+    if data_inicio:
+        try:
+            dia, mes, ano = data_inicio.split("/")
+            data_inicio_obj = date_type(int(ano), int(mes), int(dia))
+        except:
+            pass
+    
+    if data_fim:
+        try:
+            dia, mes, ano = data_fim.split("/")
+            data_fim_obj = date_type(int(ano), int(mes), int(dia))
+        except:
+            pass
     
     with open("metricas.csv", "r", encoding="utf-8") as f:
         reader = csv.reader(f)
@@ -115,21 +148,35 @@ def carregar_metricas(data_inicio=None, data_fim=None):
             if len(row) < 4:
                 continue
             data_linha, hora, id_v, status = row
-            if data_inicio and data_fim:
-                if data_inicio <= data_linha <= data_fim:
+            
+            # Converte a data da linha para objeto date
+            try:
+                dia, mes, ano = data_linha.split("/")
+                data_linha_obj = date_type(int(ano), int(mes), int(dia))
+            except:
+                continue
+            
+            # Filtro por período
+            if data_inicio_obj and data_fim_obj:
+                if data_inicio_obj <= data_linha_obj <= data_fim_obj:
                     if status == "sucesso": sucesso += 1
-                    elif status == "solicitante": solicitante += 1  # NOVO
+                    elif status == "solicitante": solicitante += 1
                     else: erro += 1
-            elif data_inicio:
-                if data_linha == data_inicio:
+            elif data_inicio_obj:
+                if data_linha_obj == data_inicio_obj:
                     if status == "sucesso": sucesso += 1
-                    elif status == "solicitante": solicitante += 1  # NOVO
+                    elif status == "solicitante": solicitante += 1
                     else: erro += 1
+            else:
+                # Sem filtro: conta tudo
+                if status == "sucesso": sucesso += 1
+                elif status == "solicitante": solicitante += 1
+                else: erro += 1
     
     return {
         "sucesso": sucesso, 
         "erro": erro, 
-        "solicitante": solicitante,  # NOVO
+        "solicitante": solicitante,
         "total": sucesso + erro + solicitante
     }
 
@@ -157,6 +204,7 @@ def save_credencial(chave, valor):
     """Salva uma credencial"""
     salvar_credencial(chave, valor)
     return True
+
 @eel.expose
 def get_metricas(opcao="sessao", data_inicio=None, data_fim=None):
     """Retorna métricas baseado no filtro"""
@@ -202,11 +250,11 @@ def atualizar_log_frontend(mensagem, tipo="info"):
     except:
         pass
 
-def atualizar_sucesso_frontend(id_v, num_pedido):
+def atualizar_sucesso_frontend(id_v, num_pedido, tempo_segundos=0):
     """Envia pedido pronto para a tab específica"""
     timestamp = datetime.now().strftime('%H:%M:%S')
     try:
-        eel.addPedidoPronto(timestamp, id_v, num_pedido)()
+        eel.addPedidoPronto(timestamp, id_v, num_pedido, tempo_segundos)()
     except:
         pass
 
@@ -480,30 +528,24 @@ def executar_automacao(ids_processar):
         time.sleep(0.5)
         btn_tentar.click()
         
-        # verificar se foi para a alçada do solicitante (seguiu) ou se ficou na mesma etapa, com logica de atualizar a pagina algumas vezes para evitar falhas de atualização do status do v360, que é bem frequente.
+            # verificar se foi para a alçada do solicitante (seguiu) ou se ficou na mesma etapa, com logica de atualizar a pagina algumas vezes para evitar falhas de atualização do status do v360, que é bem frequente.
         status_correto = False
-        esperar_elemento(By.CLASS_NAME, "checkout-bar-item-title", 15)
-        
-        for i in range(5):
-            try:
-                status_txt = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "checkout-bar-item-title"))).text.strip().lower()
-                if "analisar - ciclo de alçada solicitante" in status_txt:
-                    status_correto = True
-                    break
-            except: pass
-            time.sleep(1)
-        
-        if not status_correto:
-            driver.refresh()
-            time.sleep(1.5)
-            for i in range(5):
+
+        for tentativa in range(5):
+            elemento = esperar_elemento(By.CLASS_NAME, "checkout-bar-item-title", 3)
+            
+            if elemento:
                 try:
-                    status_txt = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "checkout-bar-item-title"))).text.strip().lower()
+                    status_txt = elemento.text.strip().lower()
                     if "analisar - ciclo de alçada solicitante" in status_txt:
                         status_correto = True
                         break
-                except: pass
-                time.sleep(1)
+                except:
+                    pass
+            
+            if tentativa < 4:
+                driver.refresh()
+                time.sleep(1.5)
         
         if not status_correto:
             atualizar_log_frontend(f"[FALHA] Verificar pedido e medição do id #{id_v360}", "error")
@@ -527,7 +569,8 @@ def executar_automacao(ids_processar):
         time.sleep(0.5)
         
         atualizar_log_frontend(f"✅ ID {id_v360} LIBERADO!", "success")
-        atualizar_sucesso_frontend(id_v360, num_pedido)
+        tempo_total = (datetime.now() - tempo_inicio).total_seconds()
+        atualizar_sucesso_frontend(id_v360, num_pedido, tempo_total)
         contadores[0] += 1  # sucesso
         salvar_backup(id_v360, num_pedido)
         salvar_metrica(id_v360, "sucesso")        
@@ -568,6 +611,7 @@ def executar_automacao(ids_processar):
         for idx, id_v360 in enumerate(ids_processar, 1):
             # Atualiza progresso
             atualizar_progresso_frontend(idx, len(ids_processar))
+            tempo_inicio = datetime.now()
             
             sap_handle = None
             erro_ja_registrado = False  # 999999: controle de erro duplicado
@@ -683,9 +727,19 @@ def executar_automacao(ids_processar):
                     pass
                 time.sleep(1)
                 
-                # ativar sintese sap com retry
-                if not clicar_com_retry("div[lsdata*='Ativar síntese de documentos']", By.CSS_SELECTOR, "Ativar síntese"):
-                    atualizar_log_frontend("Botão Ativar síntese não funcionou", "warning")
+                # ativar sintese sap via F8 (5 tentativas)
+                for tentativa_sintese in range(5):
+                    focar_sap()
+                    driver.find_element(By.TAG_NAME, "body").send_keys(Keys.F8)
+                    time.sleep(1)
+                    # Verifica se o dropdown apareceu
+                    try:
+                        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "[title*='Variante de seleção']")))
+                        break
+                    except:
+                        pass
+                else:
+                    atualizar_log_frontend("Síntese não ativou após 5 F8", "warning")
                     continue
                 
                 # Verifica se o dropdown apareceu
@@ -810,7 +864,7 @@ def executar_automacao(ids_processar):
                     json_data_cat = driver.execute_script('return document.getElementById("M0:46:1:3:2:1:1[1,15]_c").getAttribute("lsdata");')
                     val_cat = json.loads(json_data_cat).get("21", {}).get("value", "")
                     
-                    prefixos_validos = ("REPASSE", "SERV.", "PLANO DE SAUDE", "DESPESAS COM SOFTW")
+                    prefixos_validos = ("REPASSE", "SERV.", "PLANO DE SAUDE", "DESPESAS COM SOFTW", "VALE TRANSPORTE OPE")
                     if val_cat.startswith(prefixos_validos):
                         atualizar_log_frontend(f"Serviço correto? Sim ({val_cat})")
                     else:
@@ -1060,7 +1114,6 @@ def executar_automacao(ids_processar):
                     salvar_backup(id_v360, pedido_gerado)
                     salvar_metrica(id_v360, "sucesso")
                     atualizar_log_frontend(f"Sucesso: Pedido criado. Número: {pedido_gerado}", "success")
-                    atualizar_sucesso_frontend(id_v360, pedido_gerado)
                     atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
 
                     atualizar_log_frontend("DEBUG: Voltando para V360...")
@@ -1125,29 +1178,23 @@ def executar_automacao(ids_processar):
 
                     # verificar se foi para a alçada do solicitante (seguiu) ou se ficou na mesma etapa, com logica de atualizar a pagina algumas vezes para evitar falhas de atualização do status do v360, que é bem frequente.
                     status_correto = False
-                    esperar_elemento(By.CLASS_NAME, "checkout-bar-item-title", 15)
 
-                    for i in range(5):
-                        try:
-                            status_txt = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "checkout-bar-item-title"))).text.strip().lower()
-                            if "analisar - ciclo de alçada solicitante" in status_txt:
-                                status_correto = True
-                                break
-                        except: pass
-                        time.sleep(1)
-                    
-                    if not status_correto:
-                        driver.refresh()
-                        time.sleep(1.5)
-                        for i in range(5):
+                    for tentativa in range(5):
+                        elemento = esperar_elemento(By.CLASS_NAME, "checkout-bar-item-title", 3)
+                        
+                        if elemento:
                             try:
-                                status_txt = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "checkout-bar-item-title"))).text.strip().lower()
+                                status_txt = elemento.text.strip().lower()
                                 if "analisar - ciclo de alçada solicitante" in status_txt:
                                     status_correto = True
                                     break
-                            except: pass
-                            time.sleep(1)
-
+                            except:
+                                pass
+                        
+                        if tentativa < 4:
+                            driver.refresh()
+                            time.sleep(1.5)
+                    
                     if not status_correto:
                         atualizar_log_frontend(f"[FALHA] Verificar pedido e medição do id #{id_v360}", "error")
                         contadores[1] += 1  # erro
@@ -1170,6 +1217,8 @@ def executar_automacao(ids_processar):
                     btn_feito = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'FEITO')]")))
                     btn_feito.click()
                     atualizar_log_frontend(f"✅ ID {id_v360} LIBERADO!")
+                    tempo_total = (datetime.now() - tempo_inicio).total_seconds()
+                    atualizar_sucesso_frontend(id_v360, pedido_gerado, tempo_total)                    
 
                 else:
                     if not erro_ja_registrado:  # 999999: so registra se nao foi antes
@@ -1213,11 +1262,9 @@ def executar_automacao(ids_processar):
 
 # --- INICIALIZAÇÃO ---
 if __name__ == "__main__":
-    import random
-    port = random.randint(8000, 8999)
     # Configurações da janela Eel
     eel.start('index.html', 
               mode='chrome',
               size=(1400, 900),
-              port=port,
+              port=8000,
               cmdline_args=['--start-maximized'])
