@@ -705,7 +705,7 @@ def executar_automacao(ids_processar):
                     continue
                     
                 v_iva = "ZZ" 
-                csv_path = resource_path(f"{v_org_cod}.csv")
+                csv_path = resource_path(f"config/{v_org_cod}.csv")
                 if os.path.exists(csv_path):
                     with open(csv_path, mode='r', encoding='utf-8') as f_csv:
                         reader = csv.reader(f_csv)
@@ -838,8 +838,8 @@ def executar_automacao(ids_processar):
                     
                     achou_de_para = False
                     valor_esperado = ""
-                    if os.path.exists(resource_path("deParaUnidades.csv")):
-                        with open(resource_path("deParaUnidades.csv"), mode='r', encoding='utf-8') as f:
+                    if os.path.exists(resource_path("config/deParaUnidades.csv")):
+                        with open(resource_path("config/deParaUnidades.csv"), mode='r', encoding='utf-8') as f:
                             for linha in f:
                                 partes = linha.strip().split(',')
                                 if len(partes) >= 2 and partes[0].strip() == v_org_cod:
@@ -1262,9 +1262,11 @@ def executar_automacao(ids_processar):
 
 # --- INICIALIZAÇÃO ---
 if __name__ == "__main__":
+    import random
+    port = random.randint(8000, 8999)
     # Configurações da janela Eel
     eel.start('index.html', 
               mode='chrome',
               size=(1400, 900),
-              port=8000,
+              port=port,
               cmdline_args=['--start-maximized'])
