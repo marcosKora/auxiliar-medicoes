@@ -17,6 +17,8 @@ import json
 import threading
 import eel
 
+
+
 # Inicializa o Eel
 eel.init('web')
 
@@ -1261,13 +1263,42 @@ def executar_automacao(ids_processar):
     finally:
         driver.quit()
 
+
+
+
+# retirar dessa parte ###########################################################################
+if os.path.exists("id_temp.txt"):
+    with open("id_temp.txt", "r") as f:
+        id_medicao = f.read().strip()
+    
+    # Chama sua função de automação diretamente, sem abrir interface Eel
+    executar_automacao([id_medicao])
+    os.remove("id_temp.txt")  # Limpa o arquivo temporário
+    
+else:
+    # Comportamento normal (roda com Eel quando executado localmente)
+    if __name__ == "__main__":
+        import random
+        port = random.randint(8000, 8999)
+        eel.start('index.html', 
+                  mode='chrome',
+                  size=(1400, 900),
+                  port=port,
+                  cmdline_args=['--start-maximized'])
+
+# ate essa parte ################################################################################
+
+
+
+
+# ## descomentar essa parte abaixo ####
 # --- INICIALIZAÇÃO ---
-if __name__ == "__main__":
-    import random
-    port = random.randint(8000, 8999)
-    # Configurações da janela Eel
-    eel.start('index.html', 
-              mode='chrome',
-              size=(1400, 900),
-              port=port,
-              cmdline_args=['--start-maximized'])
+#if __name__ == "__main__":
+#    import random
+#    port = random.randint(8000, 8999)
+#    # Configurações da janela Eel
+#    eel.start('index.html', 
+#              mode='chrome',
+#              size=(1400, 900),
+#              port=port,
+#              cmdline_args=['--start-maximized'])
