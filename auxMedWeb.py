@@ -304,8 +304,10 @@ def executar_automacao(ids_processar):
     chrome_options.add_argument("--window-size=1920,1080")
     
     creds = carregar_credenciais()
-    
-    driver = webdriver.Chrome(service=servico, options=chrome_options)
+
+    # Modifique a linha 308 para ficar assim:
+    driver = webdriver.Chrome(options=chrome_options)
+    # driver = webdriver.Chrome(service=servico, options=chrome_options)
     wait = WebDriverWait(driver, 45)
 
     def esperar_elemento(by, selector, timeout=30):
