@@ -18,7 +18,7 @@ import threading
 import eel
 
 # Inicializa o Eel
-eel.init('web')
+# eel.init('web')
 
 def resource_path(relative_path):
     """ Retorna o caminho absoluto para o recurso, funciona em dev e no PyInstaller """
@@ -1272,8 +1272,8 @@ if os.path.exists("id_temp.txt"):
 elif __name__ == "__main__":
     import random
     port = random.randint(8000, 8999)
-    eel.start('index.html', 
-              mode='chrome',
-              size=(1400, 900),
-              port=port,
-              cmdline_args=['--start-maximized'])
+    #eel.start('index.html', 
+    #          mode='chrome',
+    #          size=(1400, 900),
+    #          port=port,
+    #          cmdline_args=['--start-maximized'])
