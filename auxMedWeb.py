@@ -18,7 +18,7 @@ import threading
 import eel
 
 # Inicializa o Eel
-# eel.init('web')
+eel.init('web')
 
 def resource_path(relative_path):
     """ Retorna o caminho absoluto para o recurso, funciona em dev e no PyInstaller """
@@ -1261,19 +1261,13 @@ def executar_automacao(ids_processar):
     finally:
         driver.quit()
 
-# Verifica se está rodando na nuvem (API)
-if os.path.exists("id_temp.txt"):
-    with open("id_temp.txt", "r") as f:
-        id_medicao = f.read().strip()
-    executar_automacao([id_medicao])
-    os.remove("id_temp.txt")
-
-# Comportamento normal (roda com Eel quando executado localmente)
-elif __name__ == "__main__":
+# --- INICIALIZAÇÃO ---
+if __name__ == "__main__":
     import random
     port = random.randint(8000, 8999)
-    #eel.start('index.html', 
-    #          mode='chrome',
-    #          size=(1400, 900),
-    #          port=port,
-    #          cmdline_args=['--start-maximized'])
+    # Configurações da janela Eel
+    eel.start('index.html', 
+              mode='chrome',
+              size=(1400, 900),
+              port=port,
+              cmdline_args=['--start-maximized'])
