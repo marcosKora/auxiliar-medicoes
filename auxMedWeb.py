@@ -3,6 +3,7 @@ import csv
 import os
 import re
 import requests
+from webdriver_manager.chrome import ChromeDriverManager
 from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -294,8 +295,7 @@ def executar_automacao(ids_processar):
     contadores = [0, 0, 0]  # [sucesso, erro, solicitante]
     cont_total = len(ids_processar)
     
-    caminho_driver = os.path.join(os.getcwd(), "chromedriver.exe")
-    servico = Service(caminho_driver)
+    servico = Service(ChromeDriverManager().install())
     chrome_options = Options()
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
