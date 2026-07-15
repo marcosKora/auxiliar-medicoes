@@ -67,7 +67,7 @@ BACKUP_FILE = "historico_pedidos.txt"
 ERROR_FILE = "erros_pedidos.txt"
 
 def carregar_credenciais():
-    creds = {"V360_USER": "", "V360_PASS": "", "SAP_USER": "", "SAP_PASS": "", "KORA_MED_PASS": ""}
+    creds = {"V360_USER": "", "V360_PASS": "", "SAP_USER": "", "SAP_PASS": "", "KORA_MED_PASS": "", "KORA_MED_EMAIL": ""}
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r") as f:
             for linha in f:
@@ -584,15 +584,31 @@ def executar_automacao(ids_processar):
         # abrir site do kora-medicoes e logar
         driver.get("https://kora-medicoes.web.app/")
         driver.execute_script("document.body.style.zoom='90%'")
-        
-        senha_input = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='password']")))
+
+        # Aguarda o site carregar completamente
+        time.sleep(1.5)
+
+        # Preenche o e-mail
+        email_input = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='email'][placeholder*='@korasaude.com.br']")))
+        email_input.click()
+        email_input.clear()
+        time.sleep(1.5)
+        email_input.send_keys(creds["KORA_MED_EMAIL"])
+        time.sleep(1.5)
+
+        # Preenche a senha
+        senha_input = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='password'][placeholder*='••••']")))
         senha_input.click()
         senha_input.clear()
-        time.sleep(0.5)
+        time.sleep(1.5)
         senha_input.send_keys(creds["KORA_MED_PASS"])
-        time.sleep(1.5)        
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Entrar no Painel')]"))).click()
-        time.sleep(1)
+        time.sleep(1.5)
+
+        # Clica no botão Acessar Painel
+        btn_acessar = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Acessar Painel')]")))
+        btn_acessar.click()
+        time.sleep(3)
+
         kora_handle = driver.current_window_handle
         
         # abrir site do v360 em outra aba e logar
