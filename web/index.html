@@ -137,7 +137,7 @@
             <div class="space-y-4">
                 <div><label class="text-[#6a6a6a] text-xs font-semibold tracking-wider uppercase block mb-1.5">Virtual 360</label><input type="text" id="cfg-v360-user" placeholder="E-mail" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20"><input type="password" id="cfg-v360-pass" placeholder="Senha" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20 mt-2"></div>
                 <div><label class="text-[#6a6a6a] text-xs font-semibold tracking-wider uppercase block mb-1.5">SAP</label><input type="text" id="cfg-sap-user" placeholder="Usuário" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20"><input type="password" id="cfg-sap-pass" placeholder="Senha" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20 mt-2"></div>
-                <div><label class="text-[#6a6a6a] text-xs font-semibold tracking-wider uppercase block mb-1.5">Kora Medições</label><input type="password" id="cfg-kora-pass" placeholder="Senha" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20"></div>
+                <div><label class="text-[#6a6a6a] text-xs font-semibold tracking-wider uppercase block mb-1.5">Kora Medições</label><input type="email" id="cfg-kora-email" placeholder="E-mail" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20"><input type="password" id="cfg-kora-pass" placeholder="Senha" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20 mt-2"></div>
             </div>
             <div class="flex justify-end gap-3 mt-6">
                 <button onclick="toggleConfig()" class="px-5 py-2.5 text-sm text-[#b3b3b3] hover:text-white transition-colors tracking-wide uppercase">Cancelar</button>
@@ -162,6 +162,7 @@
             document.getElementById('cfg-v360-pass').value = c.V360_PASS || '';
             document.getElementById('cfg-sap-user').value = c.SAP_USER || '';
             document.getElementById('cfg-sap-pass').value = c.SAP_PASS || '';
+            document.getElementById('cfg-kora-email').value = c.KORA_MED_EMAIL || '';
             document.getElementById('cfg-kora-pass').value = c.KORA_MED_PASS || '';
             updateSplash(90, 'Pronto');
             setTimeout(() => { updateSplash(100, 'Concluído'); setTimeout(() => { document.getElementById('splash').style.display = 'none'; document.getElementById('main-app').classList.remove('hidden'); }, 300); }, 400);
@@ -169,7 +170,7 @@
         function updateSplash(p, s) { document.getElementById('splash-progress').style.width = p + '%'; document.getElementById('splash-status').textContent = s; }
         function toggleConfig() { document.getElementById('config-modal').classList.toggle('hidden'); }
         async function salvarCredenciais() {
-            const c = { 'V360_USER': document.getElementById('cfg-v360-user').value, 'V360_PASS': document.getElementById('cfg-v360-pass').value, 'SAP_USER': document.getElementById('cfg-sap-user').value, 'SAP_PASS': document.getElementById('cfg-sap-pass').value, 'KORA_MED_PASS': document.getElementById('cfg-kora-pass').value };
+            const c = { 'V360_USER': document.getElementById('cfg-v360-user').value, 'V360_PASS': document.getElementById('cfg-v360-pass').value, 'SAP_USER': document.getElementById('cfg-sap-user').value, 'SAP_PASS': document.getElementById('cfg-sap-pass').value, 'KORA_MED_EMAIL': document.getElementById('cfg-kora-email').value, 'KORA_MED_PASS': document.getElementById('cfg-kora-pass').value };
             for (const [k, v] of Object.entries(c)) await eel.save_credencial(k, v)();
             alert('Credenciais salvas.'); toggleConfig();
         }
@@ -242,7 +243,6 @@
             const dataIni = document.getElementById('modal-data-inicio').value || null;
             const dataFim = document.getElementById('modal-data-fim').value || null;
             let m = op === 'sessao' ? metricasSessao : await eel.get_metricas(op, dataIni, dataFim)();
-            // SEM FILA no modal de métricas
             document.getElementById('modal-metricas-result').innerHTML = `
                 <div class="flex items-center gap-10 justify-center">
                     <div class="text-center"><span class="text-3xl font-light text-white">${m.total}</span><p class="text-[#6a6a6a] text-xs mt-1.5 uppercase tracking-wider">Total</p></div>
@@ -290,7 +290,6 @@
             const ids = tx.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
             if (!ids.length) { alert('Nenhum ID válido.'); return; }
             metricasSessao = { sucesso: 0, erro: 0, solicitante: 0, total: ids.length };
-            // NÃO limpa cacheSucesso, cacheErro, cacheSolicitante
             updateMetrics(0, 0, 0, ids.length);
             document.getElementById('progress-container').classList.remove('hidden');
             document.getElementById('progress-bar').style.width = '0%';
