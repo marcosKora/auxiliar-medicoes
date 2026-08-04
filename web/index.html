@@ -369,7 +369,8 @@
             document.getElementById('progress-container').classList.remove('hidden');
             document.getElementById('progress-bar').style.width = '0%';
             document.getElementById('log-container').innerHTML = '<p class="log-line active">Iniciando processamento...</p>';
-            await eel.processar_ids(ids)();
+            const perfil = document.getElementById('perfil-select').value;
+            await eel.processar_ids(ids, perfil)();
         }
         
         async function limparLogs() {
