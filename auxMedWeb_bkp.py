@@ -3,6 +3,7 @@ import csv
 import os
 import re
 import requests
+from webdriver_manager.chrome import ChromeDriverManager
 from datetime import datetime, timedelta
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -18,7 +19,7 @@ import threading
 import eel
 
 # Inicializa o Eel
-# eel.init('web')
+eel.init('web')
 
 def resource_path(relative_path):
     """ Retorna o caminho absoluto para o recurso, funciona em dev e no PyInstaller """
@@ -66,7 +67,7 @@ BACKUP_FILE = "historico_pedidos.txt"
 ERROR_FILE = "erros_pedidos.txt"
 
 def carregar_credenciais():
-    creds = {"V360_USER": "", "V360_PASS": "", "SAP_USER": "", "SAP_PASS": "", "KORA_MED_PASS": ""}
+    creds = {"V360_USER": "", "V360_PASS": "", "SAP_USER": "", "SAP_PASS": "", "KORA_MED_PASS": "", "KORA_MED_EMAIL": ""}
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r") as f:
             for linha in f:
@@ -294,13 +295,12 @@ def executar_automacao(ids_processar):
     contadores = [0, 0, 0]  # [sucesso, erro, solicitante]
     cont_total = len(ids_processar)
     
-    caminho_driver = os.path.join(os.getcwd(), "chromedriver.exe")
-    servico = Service(caminho_driver)
+    servico = Service(ChromeDriverManager().install())
     chrome_options = Options()
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--headless=new")
+    # chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--window-size=1920,1080")
     
     creds = carregar_credenciais()
@@ -584,15 +584,31 @@ def executar_automacao(ids_processar):
         # abrir site do kora-medicoes e logar
         driver.get("https://kora-medicoes.web.app/")
         driver.execute_script("document.body.style.zoom='90%'")
-        
-        senha_input = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='password']")))
+
+        # Aguarda o site carregar completamente
+        time.sleep(1.5)
+
+        # Preenche o e-mail
+        email_input = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='email'][placeholder*='@korasaude.com.br']")))
+        email_input.click()
+        email_input.clear()
+        time.sleep(1.5)
+        email_input.send_keys(creds["KORA_MED_EMAIL"])
+        time.sleep(1.5)
+
+        # Preenche a senha
+        senha_input = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='password'][placeholder*='••••']")))
         senha_input.click()
         senha_input.clear()
-        time.sleep(0.5)
+        time.sleep(1.5)
         senha_input.send_keys(creds["KORA_MED_PASS"])
-        time.sleep(1.5)        
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Entrar no Painel')]"))).click()
-        time.sleep(1)
+        time.sleep(1.5)
+
+        # Clica no botão Acessar Painel
+        btn_acessar = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Acessar Painel')]")))
+        btn_acessar.click()
+        time.sleep(3)
+
         kora_handle = driver.current_window_handle
         
         # abrir site do v360 em outra aba e logar
@@ -865,7 +881,7 @@ def executar_automacao(ids_processar):
                     json_data_cat = driver.execute_script('return document.getElementById("M0:46:1:3:2:1:1[1,15]_c").getAttribute("lsdata");')
                     val_cat = json.loads(json_data_cat).get("21", {}).get("value", "")
                     
-                    prefixos_validos = ("REPASSE", "SERV.", "PLANO DE SAUDE", "DESPESAS COM SOFTW", "VALE TRANSPORTE OPE")
+                    prefixos_validos = ("REPASSE", "SERV.", "PLANO DE SAUDE", "DESPESAS COM SOFTW", "VALE TRANSPORTE OPE", "TAXAS ADMINISTRATIVA")
                     if val_cat.startswith(prefixos_validos):
                         atualizar_log_frontend(f"Serviço correto? Sim ({val_cat})")
                     else:
@@ -1261,19 +1277,13 @@ def executar_automacao(ids_processar):
     finally:
         driver.quit()
 
-# Verifica se está rodando na nuvem (API)
-if os.path.exists("id_temp.txt"):
-    with open("id_temp.txt", "r") as f:
-        id_medicao = f.read().strip()
-    executar_automacao([id_medicao])
-    os.remove("id_temp.txt")
-
-# Comportamento normal (roda com Eel quando executado localmente)
-elif __name__ == "__main__":
+# --- INICIALIZAÇÃO ---
+if __name__ == "__main__":
     import random
     port = random.randint(8000, 8999)
-    #eel.start('index.html', 
-    #          mode='chrome',
-    #          size=(1400, 900),
-    #          port=port,
-    #          cmdline_args=['--start-maximized'])
+    # Configurações da janela Eel
+    eel.start('index.html', 
+              mode='chrome',
+              size=(1400, 900),
+              port=port,
+              cmdline_args=['--start-maximized'])
