@@ -278,10 +278,8 @@ def get_metricas(opcao="sessao", data_inicio=None, data_fim=None):
         return carregar_metricas()
 
 @eel.expose
-def processar_ids(ids_lista):
-    """Inicia o processamento dos IDs"""
-    # Inicia thread de automação
-    threading.Thread(target=executar_automacao, args=(ids_lista,), daemon=True).start()
+def processar_ids(ids_lista, nome_perfil=None):
+    threading.Thread(target=executar_automacao, args=(ids_lista, nome_perfil), daemon=True).start()
     return True
 
 @eel.expose
@@ -348,9 +346,11 @@ logs_raw = []
 def copiar_logs_raw():
     return "\n".join(logs_raw)
 
-def executar_automacao(ids_processar):
+def executar_automacao(ids_processar, nome_perfil=None):
     global logs_raw
     logs_raw = []
+    if nome_perfil:
+        logs_raw.append(f"USUARIO: {nome_perfil}")
     # Função principal de automação (MANTIDA IGUAL)
     # Usando listas mutáveis para contadores (evita nonlocal)
     contadores = [0, 0, 0]  # [sucesso, erro, solicitante]
