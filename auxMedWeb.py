@@ -954,7 +954,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     json_data_cat = driver.execute_script('return document.getElementById("M0:46:1:3:2:1:1[1,15]_c").getAttribute("lsdata");')
                     val_cat = json.loads(json_data_cat).get("21", {}).get("value", "")
                     
-                    prefixos_validos = ("REPASSE", "SERV.", "PLANO DE SAUDE", "DESPESAS COM SOFTW", "VALE TRANSPORTE OPE", "TAXAS ADMINISTRATIVA")
+                    prefixos_validos = ("REPASSE", "SERV.", "PLANO DE SAUDE", "DESPESAS COM SOFTW", "VALE TRANSPORTE OPE", "TAXAS ADMINISTRATIVA", "SERV ALIMENT ADM")
                     if val_cat.startswith(prefixos_validos):
                         atualizar_log_frontend(f"Serviço correto? Sim ({val_cat})")
                     else:
