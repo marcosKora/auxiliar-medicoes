@@ -30,27 +30,31 @@ def carregar_perfis():
             for linha in f:
                 if "|" in linha:
                     partes = linha.strip().split("|")
-                    if len(partes) == 5:
+                    if len(partes) >= 7:
                         nome = partes[0]
                         perfis[nome] = {
                             "V360_USER": partes[1],
                             "V360_PASS": partes[2],
                             "SAP_USER": partes[3],
-                            "SAP_PASS": partes[4]
+                            "SAP_PASS": partes[4],
+                            "KORA_MED_EMAIL": partes[5],
+                            "KORA_MED_PASS": partes[6]
                         }
     return perfis
 
-def salvar_perfil(nome, v360_user, v360_pass, sap_user, sap_pass):
+def salvar_perfil(nome, v360_user, v360_pass, sap_user, sap_pass, kora_med_email, kora_med_pass):
     perfis = carregar_perfis()
     perfis[nome] = {
         "V360_USER": v360_user,
         "V360_PASS": v360_pass,
         "SAP_USER": sap_user,
-        "SAP_PASS": sap_pass
+        "SAP_PASS": sap_pass,
+        "KORA_MED_EMAIL": kora_med_email,
+        "KORA_MED_PASS": kora_med_pass
     }
     with open(PERFIS_FILE, "w", encoding="utf-8") as f:
         for n, p in perfis.items():
-            f.write(f"{n}|{p['V360_USER']}|{p['V360_PASS']}|{p['SAP_USER']}|{p['SAP_PASS']}\n")
+            f.write(f"{n}|{p['V360_USER']}|{p['V360_PASS']}|{p['SAP_USER']}|{p['SAP_PASS']}|{p['KORA_MED_EMAIL']}|{p['KORA_MED_PASS']}\n")
     return True
 
 def excluir_perfil(nome):
@@ -59,7 +63,7 @@ def excluir_perfil(nome):
         del perfis[nome]
         with open(PERFIS_FILE, "w", encoding="utf-8") as f:
             for n, p in perfis.items():
-                f.write(f"{n}|{p['V360_USER']}|{p['V360_PASS']}|{p['SAP_USER']}|{p['SAP_PASS']}\n")
+                f.write(f"{n}|{p['V360_USER']}|{p['V360_PASS']}|{p['SAP_USER']}|{p['SAP_PASS']}|{p['KORA_MED_EMAIL']}|{p['KORA_MED_PASS']}\n")
         return True
     return False
 
@@ -68,8 +72,8 @@ def get_perfis():
     return carregar_perfis()
 
 @eel.expose
-def add_perfil(nome, v360_user, v360_pass, sap_user, sap_pass):
-    return salvar_perfil(nome, v360_user, v360_pass, sap_user, sap_pass)
+def add_perfil(nome, v360_user, v360_pass, sap_user, sap_pass, kora_med_email, kora_med_pass):
+    return salvar_perfil(nome, v360_user, v360_pass, sap_user, sap_pass, kora_med_email, kora_med_pass)
 
 @eel.expose
 def delete_perfil(nome):
@@ -364,7 +368,14 @@ def executar_automacao(ids_processar, nome_perfil=None):
     # chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--window-size=1920,1080")
     
-    creds = carregar_credenciais()
+    if nome_perfil:
+        perfis = carregar_perfis()
+        if nome_perfil in perfis:
+            creds = perfis[nome_perfil]
+        else:
+            creds = carregar_credenciais()
+    else:
+        creds = carregar_credenciais()
 
     # Modifique a linha 308 para ficar assim:
     driver = webdriver.Chrome(options=chrome_options)
