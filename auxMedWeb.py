@@ -21,6 +21,60 @@ import eel
 # Inicializa o Eel
 eel.init('web')
 
+PERFIS_FILE = "perfis.txt"
+
+def carregar_perfis():
+    perfis = {}
+    if os.path.exists(PERFIS_FILE):
+        with open(PERFIS_FILE, "r", encoding="utf-8") as f:
+            for linha in f:
+                if "|" in linha:
+                    partes = linha.strip().split("|")
+                    if len(partes) == 5:
+                        nome = partes[0]
+                        perfis[nome] = {
+                            "V360_USER": partes[1],
+                            "V360_PASS": partes[2],
+                            "SAP_USER": partes[3],
+                            "SAP_PASS": partes[4]
+                        }
+    return perfis
+
+def salvar_perfil(nome, v360_user, v360_pass, sap_user, sap_pass):
+    perfis = carregar_perfis()
+    perfis[nome] = {
+        "V360_USER": v360_user,
+        "V360_PASS": v360_pass,
+        "SAP_USER": sap_user,
+        "SAP_PASS": sap_pass
+    }
+    with open(PERFIS_FILE, "w", encoding="utf-8") as f:
+        for n, p in perfis.items():
+            f.write(f"{n}|{p['V360_USER']}|{p['V360_PASS']}|{p['SAP_USER']}|{p['SAP_PASS']}\n")
+    return True
+
+def excluir_perfil(nome):
+    perfis = carregar_perfis()
+    if nome in perfis:
+        del perfis[nome]
+        with open(PERFIS_FILE, "w", encoding="utf-8") as f:
+            for n, p in perfis.items():
+                f.write(f"{n}|{p['V360_USER']}|{p['V360_PASS']}|{p['SAP_USER']}|{p['SAP_PASS']}\n")
+        return True
+    return False
+
+@eel.expose
+def get_perfis():
+    return carregar_perfis()
+
+@eel.expose
+def add_perfil(nome, v360_user, v360_pass, sap_user, sap_pass):
+    return salvar_perfil(nome, v360_user, v360_pass, sap_user, sap_pass)
+
+@eel.expose
+def delete_perfil(nome):
+    return excluir_perfil(nome)
+
 def resource_path(relative_path):
     """ Retorna o caminho absoluto para o recurso, funciona em dev e no PyInstaller """
     try:
@@ -244,7 +298,6 @@ def limpar_logs():
 
 # Funções de callback para o frontend
 def atualizar_log_frontend(mensagem, tipo="info"):
-    """Envia log para o frontend"""
     timestamp = datetime.now().strftime('%H:%M:%S')
     try:
         eel.addLog(timestamp, mensagem, tipo)()
@@ -252,28 +305,28 @@ def atualizar_log_frontend(mensagem, tipo="info"):
         pass
 
 def atualizar_sucesso_frontend(id_v, num_pedido, tempo_segundos=0):
-    """Envia pedido pronto para a tab específica"""
     timestamp = datetime.now().strftime('%H:%M:%S')
     try:
         eel.addPedidoPronto(timestamp, id_v, num_pedido, tempo_segundos)()
     except:
         pass
+    logs_raw.append(f"SUCESSO: {id_v} - {num_pedido} - Criado avulso e liberado")
 
 def atualizar_erro_frontend(id_v, mensagem):
-    """Envia erro para a tab específica"""
     timestamp = datetime.now().strftime('%H:%M:%S')
     try:
         eel.addErro(timestamp, id_v, mensagem)()
     except:
         pass
+    logs_raw.append(f"ERRO: {id_v} - {mensagem}")
 
 def atualizar_solicitante_frontend(id_v, mensagem):
-    """Envia solicitante para a tab específica"""
     timestamp = datetime.now().strftime('%H:%M:%S')
     try:
         eel.addSolicitante(timestamp, id_v, mensagem)()
     except:
-        pass    
+        pass
+    logs_raw.append(f"SOLICITANTE: {id_v} - {mensagem}")
 
 def atualizar_progresso_frontend(atual, total):
     """Atualiza barra de progresso no frontend"""
@@ -289,8 +342,16 @@ def atualizar_metricas_frontend(sucesso, erro, solicitante, total):
     except:
         pass
 
+logs_raw = []
+
+@eel.expose
+def copiar_logs_raw():
+    return "\n".join(logs_raw)
+
 def executar_automacao(ids_processar):
-    """Função principal de automação (MANTIDA IGUAL)"""
+    global logs_raw
+    logs_raw = []
+    # Função principal de automação (MANTIDA IGUAL)
     # Usando listas mutáveis para contadores (evita nonlocal)
     contadores = [0, 0, 0]  # [sucesso, erro, solicitante]
     cont_total = len(ids_processar)
@@ -571,6 +632,7 @@ def executar_automacao(ids_processar):
         
         atualizar_log_frontend(f"✅ ID {id_v360} LIBERADO!", "success")
         tempo_total = (datetime.now() - tempo_inicio).total_seconds()
+        logs_raw.append(f"SUCESSO: {id_v360} - {num_pedido} - Guarda-chuva {tipo_info} - Liberado")
         atualizar_sucesso_frontend(id_v360, num_pedido, tempo_total)
         contadores[0] += 1  # sucesso
         salvar_backup(id_v360, num_pedido)
@@ -1226,11 +1288,7 @@ def executar_automacao(ids_processar):
                     campo_pesquisa.clear()
                     campo_pesquisa.send_keys(id_v360)
                     time.sleep(0.5)
-                    
-                    btn_av = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'AV')]")))
-                    btn_av.click()
-                    time.sleep(0.5)
-                    
+                                        
                     btn_feito = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'FEITO')]")))
                     btn_feito.click()
                     atualizar_log_frontend(f"✅ ID {id_v360} LIBERADO!")
@@ -1276,6 +1334,8 @@ def executar_automacao(ids_processar):
             f.write(traceback.format_exc())
     finally:
         driver.quit()
+
+
 
 # --- INICIALIZAÇÃO ---
 if __name__ == "__main__":
