@@ -55,7 +55,13 @@
                 <span class="text-white font-bold text-sm tracking-tight opacity-80">KORA SAÚDE</span>
                 <span class="text-[#6a6a6a] text-xs">Automação de Medições v3.0</span>
             </div>
-            <div class="flex items-center gap-6">
+            <div class="flex items-center gap-4">
+                <select id="perfil-select" class="bg-[#121212] border border-[#282828] rounded-md px-3 py-2 text-[#b3b3b3] text-xs outline-none focus:border-white/20">
+                    <option value="">Selecionar perfil...</option>
+                </select>
+                <button onclick="togglePerfilModal()" class="text-[#b3b3b3] hover:text-white text-xs transition-colors nav-btn">+ Perfil</button>
+                <button onclick="deletarPerfil()" class="text-[#6a6a6a] hover:text-red-400 text-xs transition-colors nav-btn">🗑</button>
+                <button onclick="copiarLogsRaw()" class="text-[#b3b3b3] hover:text-white text-xs transition-colors nav-btn">📋 Copiar Logs</button>
                 <button onclick="iniciarProcesso()" class="btn-start nav-btn">Iniciar</button>
                 <button onclick="toggleConfig()" class="text-[#b3b3b3] hover:text-white text-sm transition-colors tracking-wide nav-btn">Configurações</button>
                 <button onclick="limparLogs()" class="text-[#6a6a6a] hover:text-white text-sm transition-colors tracking-wide nav-btn">Limpar</button>
@@ -146,6 +152,21 @@
         </div>
     </div>
 
+    <div id="perfil-modal" class="hidden fixed inset-0 bg-black/80 z-40 flex items-center justify-center">
+        <div class="bg-[#181818] border border-[#282828] rounded-lg p-8 w-96 animate-down shadow-2xl">
+            <h2 class="text-white font-semibold text-lg mb-6 tracking-tight">Novo Perfil</h2>
+            <div class="space-y-4">
+                <div><label class="text-[#6a6a6a] text-xs font-semibold tracking-wider uppercase block mb-1.5">Nome do Perfil</label><input type="text" id="perfil-nome" placeholder="Ex: João" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20"></div>
+                <div><label class="text-[#6a6a6a] text-xs font-semibold tracking-wider uppercase block mb-1.5">V360</label><input type="text" id="perfil-v360-user" placeholder="E-mail" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20"><input type="password" id="perfil-v360-pass" placeholder="Senha" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20 mt-2"></div>
+                <div><label class="text-[#6a6a6a] text-xs font-semibold tracking-wider uppercase block mb-1.5">SAP</label><input type="text" id="perfil-sap-user" placeholder="Usuário" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20"><input type="password" id="perfil-sap-pass" placeholder="Senha" class="w-full bg-[#121212] border border-[#282828] rounded-md p-2.5 text-[#e0e0e0] text-sm outline-none focus:border-white/20 mt-2"></div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="togglePerfilModal()" class="px-5 py-2.5 text-sm text-[#b3b3b3] hover:text-white transition-colors tracking-wide uppercase">Cancelar</button>
+                <button onclick="salvarPerfil()" class="px-6 py-2.5 text-sm font-semibold bg-white text-black rounded-md hover:bg-gray-200 transition-all tracking-wide uppercase">Salvar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let metricasSessao = { sucesso: 0, erro: 0, solicitante: 0, total: 0 };
         let cacheSucesso = [], cacheErro = [], cacheSolicitante = [];
@@ -164,11 +185,65 @@
             document.getElementById('cfg-sap-pass').value = c.SAP_PASS || '';
             document.getElementById('cfg-kora-email').value = c.KORA_MED_EMAIL || '';
             document.getElementById('cfg-kora-pass').value = c.KORA_MED_PASS || '';
+            await carregarPerfis();
             updateSplash(90, 'Pronto');
             setTimeout(() => { updateSplash(100, 'Concluído'); setTimeout(() => { document.getElementById('splash').style.display = 'none'; document.getElementById('main-app').classList.remove('hidden'); }, 300); }, 400);
         }
         function updateSplash(p, s) { document.getElementById('splash-progress').style.width = p + '%'; document.getElementById('splash-status').textContent = s; }
         function toggleConfig() { document.getElementById('config-modal').classList.toggle('hidden'); }
+        function togglePerfilModal() { document.getElementById('perfil-modal').classList.toggle('hidden'); }
+        
+        async function carregarPerfis() {
+            const perfis = await eel.get_perfis()();
+            const select = document.getElementById('perfil-select');
+            select.innerHTML = '<option value="">Selecionar perfil...</option>';
+            for (const [nome, dados] of Object.entries(perfis)) {
+                select.innerHTML += `<option value="${nome}">${nome}</option>`;
+            }
+        }
+        
+        async function salvarPerfil() {
+            const nome = document.getElementById('perfil-nome').value.trim();
+            if (!nome) { alert('Digite um nome para o perfil.'); return; }
+            await eel.add_perfil(nome, document.getElementById('perfil-v360-user').value, document.getElementById('perfil-v360-pass').value, document.getElementById('perfil-sap-user').value, document.getElementById('perfil-sap-pass').value)();
+            document.getElementById('perfil-nome').value = '';
+            document.getElementById('perfil-v360-user').value = '';
+            document.getElementById('perfil-v360-pass').value = '';
+            document.getElementById('perfil-sap-user').value = '';
+            document.getElementById('perfil-sap-pass').value = '';
+            await carregarPerfis();
+            togglePerfilModal();
+        }
+        
+        async function deletarPerfil() {
+            const select = document.getElementById('perfil-select');
+            const nome = select.value;
+            if (!nome) { alert('Selecione um perfil para excluir.'); return; }
+            if (confirm(`Excluir perfil "${nome}"?`)) {
+                await eel.delete_perfil(nome)();
+                await carregarPerfis();
+            }
+        }
+        
+        document.getElementById('perfil-select').addEventListener('change', async function() {
+            const nome = this.value;
+            if (!nome) return;
+            const perfis = await eel.get_perfis()();
+            const p = perfis[nome];
+            if (p) {
+                document.getElementById('cfg-v360-user').value = p.V360_USER || '';
+                document.getElementById('cfg-v360-pass').value = p.V360_PASS || '';
+                document.getElementById('cfg-sap-user').value = p.SAP_USER || '';
+                document.getElementById('cfg-sap-pass').value = p.SAP_PASS || '';
+            }
+        });
+        
+        async function copiarLogsRaw() {
+            const logs = await eel.copiar_logs_raw()();
+            if (!logs) { alert('Nenhum log disponível.'); return; }
+            navigator.clipboard.writeText(logs).then(() => alert('Logs copiados!')).catch(() => alert('Erro ao copiar.'));
+        }
+        
         async function salvarCredenciais() {
             const c = { 'V360_USER': document.getElementById('cfg-v360-user').value, 'V360_PASS': document.getElementById('cfg-v360-pass').value, 'SAP_USER': document.getElementById('cfg-sap-user').value, 'SAP_PASS': document.getElementById('cfg-sap-pass').value, 'KORA_MED_EMAIL': document.getElementById('cfg-kora-email').value, 'KORA_MED_PASS': document.getElementById('cfg-kora-pass').value };
             for (const [k, v] of Object.entries(c)) await eel.save_credencial(k, v)();
