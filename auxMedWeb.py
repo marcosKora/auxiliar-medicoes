@@ -367,7 +367,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
     chrome_options.add_argument("--disable-gpu")
     
     # Headless com melhor compatibilidade
-    # chrome_options.add_argument("--headless=new")  # Já está usando, ok
+    chrome_options.add_argument("--headless=new")  # Já está usando, ok
     chrome_options.add_argument("--window-size=1920,1080")
     
     # ADICIONE ESTAS OPÇÕES:
