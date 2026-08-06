@@ -365,8 +365,20 @@ def executar_automacao(ids_processar, nome_perfil=None):
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--headless=new")
+    
+    # Headless com melhor compatibilidade
+    # chrome_options.add_argument("--headless=new")  # Já está usando, ok
     chrome_options.add_argument("--window-size=1920,1080")
+    
+    # ADICIONE ESTAS OPÇÕES:
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-setuid-sandbox")
+    chrome_options.add_argument("--remote-debugging-port=9222")
+    chrome_options.add_argument("--disable-web-security")
+    chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+    chrome_options.add_argument("--enable-logging")
+    chrome_options.add_argument("--v=1")
     
     if nome_perfil:
         perfis = carregar_perfis()
