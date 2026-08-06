@@ -1090,7 +1090,11 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 if not clicar_com_retry("input[lsdata*='MEPO1226-ZTERM']", By.CSS_SELECTOR, "Campo ZTERM"): continue
                 z_field.send_keys(Keys.CONTROL + "a", Keys.BACKSPACE)
                 z_field.send_keys("Z030", Keys.ENTER)
-                time.sleep(1.5)
+                time.sleep(2)
+
+                # NOVO: Pressiona CTRL+F5 para fechar a aba superior
+                ActionChains(driver).key_down(Keys.CONTROL).send_keys(Keys.F5).key_up(Keys.CONTROL).perform()
+                time.sleep(1)
                 
                 # abrir a "ultima" aba dentro do SAP para colocar a o valor do pedido, quantidade 1 e o codigo IVA, usando CTRL+4
                 for tentativa_condicoes in range(10):
