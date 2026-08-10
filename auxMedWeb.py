@@ -169,11 +169,12 @@ def formatar_data(texto):
 # MODIFIQUE a função carregar_metricas para incluir 'solicitante':
 def carregar_metricas(data_inicio=None, data_fim=None):
     if not os.path.exists("metricas.csv"):
-        return {"sucesso": 0, "erro": 0, "solicitante": 0, "total": 0}
+        return {"sucesso": 0, "erro": 0, "solicitante": 0, "parcial": 0, "total": 0}
     
     sucesso = 0
     erro = 0
     solicitante = 0
+    parcial = 0
     
     # Formata as datas (aceita ddmmaaaa ou dd/mm/aaaa)
     if data_inicio:
@@ -219,16 +220,19 @@ def carregar_metricas(data_inicio=None, data_fim=None):
             if data_inicio_obj and data_fim_obj:
                 if data_inicio_obj <= data_linha_obj <= data_fim_obj:
                     if status == "sucesso": sucesso += 1
+                    elif status == "parcial": parcial += 1
                     elif status == "solicitante": solicitante += 1
                     else: erro += 1
             elif data_inicio_obj:
                 if data_linha_obj == data_inicio_obj:
                     if status == "sucesso": sucesso += 1
+                    elif status == "parcial": parcial += 1
                     elif status == "solicitante": solicitante += 1
                     else: erro += 1
             else:
                 # Sem filtro: conta tudo
                 if status == "sucesso": sucesso += 1
+                elif status == "parcial": parcial += 1
                 elif status == "solicitante": solicitante += 1
                 else: erro += 1
     
@@ -236,7 +240,8 @@ def carregar_metricas(data_inicio=None, data_fim=None):
         "sucesso": sucesso, 
         "erro": erro, 
         "solicitante": solicitante,
-        "total": sucesso + erro + solicitante
+        "parcial": parcial,
+        "total": sucesso + erro + solicitante + parcial
     }
 
 # --- EXPOSED FUNCTIONS PARA EEL ---
@@ -330,6 +335,15 @@ def atualizar_solicitante_frontend(id_v, mensagem):
         pass
     logs_raw.append(f"SOLICITANTE: {id_v} - {mensagem}")
 
+def atualizar_parcial_frontend(id_v, mensagem, origem_erro="v360"):
+    """Atualiza lista de parciais no frontend com origem do erro"""
+    timestamp = datetime.now().strftime('%H:%M:%S')
+    try:
+        eel.addParcial(timestamp, id_v, mensagem, origem_erro)()
+    except:
+        pass
+    logs_raw.append(f"PARCIAL ({origem_erro}): {id_v} - {mensagem}")
+
 def atualizar_progresso_frontend(atual, total):
     """Atualiza barra de progresso no frontend"""
     try:
@@ -337,18 +351,35 @@ def atualizar_progresso_frontend(atual, total):
     except:
         pass
 
-def atualizar_metricas_frontend(sucesso, erro, solicitante, total):
+def atualizar_metricas_frontend(sucesso, erro, solicitante, parcial, total):
     """Atualiza métricas no frontend"""
     try:
-        eel.updateMetrics(sucesso, erro, solicitante, total)()
+        eel.updateMetrics(sucesso, erro, solicitante, parcial, total)()
     except:
         pass
 
 logs_raw = []
 
 @eel.expose
-def copiar_logs_raw():
-    return "\n".join(logs_raw)
+def copiar_logs_raw(filtro="todos"):
+    """Copia logs com filtro: todos, sucesso, erro, solicitante, parcial, parcial_v360, parcial_kora"""
+    linhas_filtradas = []
+    for linha in logs_raw:
+        if filtro == "todos":
+            linhas_filtradas.append(linha)
+        elif filtro == "sucesso" and linha.startswith("SUCESSO:"):
+            linhas_filtradas.append(linha)
+        elif filtro == "erro" and linha.startswith("ERRO:"):
+            linhas_filtradas.append(linha)
+        elif filtro == "solicitante" and linha.startswith("SOLICITANTE:"):
+            linhas_filtradas.append(linha)
+        elif filtro == "parcial" and linha.startswith("PARCIAL"):
+            linhas_filtradas.append(linha)
+        elif filtro == "parcial_v360" and linha.startswith("PARCIAL (v360)"):
+            linhas_filtradas.append(linha)
+        elif filtro == "parcial_kora" and linha.startswith("PARCIAL (kora)"):
+            linhas_filtradas.append(linha)
+    return "\n".join(linhas_filtradas) if linhas_filtradas else "Nenhum log encontrado para este filtro."
 
 def executar_automacao(ids_processar, nome_perfil=None):
     global logs_raw
@@ -357,7 +388,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
         logs_raw.append(f"USUARIO: {nome_perfil}")
     # Função principal de automação (MANTIDA IGUAL)
     # Usando listas mutáveis para contadores (evita nonlocal)
-    contadores = [0, 0, 0]  # [sucesso, erro, solicitante]
+    contadores = [0, 0, 0, 0]  # [sucesso, erro, solicitante, parcial]
     cont_total = len(ids_processar)
     
     servico = Service(ChromeDriverManager().install())
@@ -511,7 +542,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
             contadores[2] += 1  # solicitante
             salvar_backup(id_v, f"ENVIADO SOLICITANTE: {tipo_erro}")
             salvar_metrica(id_v, "solicitante")
-            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
             
             # --- marcar como enviado ao solicitante no kora-medicoes.web.app ---
             driver.switch_to.window(kora_handle)
@@ -564,7 +595,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
             atualizar_erro_frontend(id_v360, "Página do V360 não carregou a tempo")
             salvar_metrica(id_v360, "erro")
             atualizar_log_frontend(f"Aviso: ID {id_v360} - Página não carregou.", "warning")
-            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
             return False
         
         btn_editar = wait.until(EC.element_to_be_clickable((By.ID, "nav-edit-tab")))
@@ -635,12 +666,13 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 driver.refresh()
         
         if not status_correto:
-            atualizar_log_frontend(f"[FALHA] Verificar pedido e medição do id #{id_v360}", "error")
-            contadores[1] += 1  # erro
-            salvar_erro_txt(id_v360, "Status não atualizou")
-            atualizar_erro_frontend(id_v360, "Status não atualizou")
-            salvar_metrica(id_v360, "erro")
-            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+            atualizar_log_frontend(f"[PARCIAL] Guarda-chuva {num_pedido} - V360 não liberou", "warning")
+            contadores[3] += 1  # parcial
+            salvar_backup(id_v360, f"GUARDA-CHUVA {num_pedido} - V360 NÃO LIBEROU")
+            salvar_erro_txt(id_v360, f"Guarda-chuva {num_pedido} - V360 não liberou")
+            atualizar_parcial_frontend(id_v360, f"Guarda-chuva {num_pedido} - V360 não liberou", "v360")
+            salvar_metrica(id_v360, "parcial")
+            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
             return False
         
         # marcar como feito no kora-medicoes.web.app
@@ -655,14 +687,15 @@ def executar_automacao(ids_processar, nome_perfil=None):
         btn_feito.click()
         time.sleep(0.5)
         
-        atualizar_log_frontend(f"✅ ID {id_v360} LIBERADO!", "success")
-        tempo_total = (datetime.now() - tempo_inicio).total_seconds()
-        logs_raw.append(f"SUCESSO: {id_v360} - {num_pedido} - Guarda-chuva {tipo_info} - Liberado")
-        atualizar_sucesso_frontend(id_v360, num_pedido, tempo_total)
+        # TUDO CERTO: guarda-chuva + V360 + FEITO
         contadores[0] += 1  # sucesso
         salvar_backup(id_v360, num_pedido)
-        salvar_metrica(id_v360, "sucesso")        
-        atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+        salvar_metrica(id_v360, "sucesso")
+        tempo_total = (datetime.now() - tempo_inicio).total_seconds()
+        atualizar_log_frontend(f"✅ ID {id_v360} LIBERADO! (Guarda-chuva {num_pedido})", "success")
+        logs_raw.append(f"SUCESSO: {id_v360} - {num_pedido} - Guarda-chuva {tipo_info} - Liberado")
+        atualizar_sucesso_frontend(id_v360, num_pedido, tempo_total)
+        atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
         return True
 
     try:
@@ -773,7 +806,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     atualizar_erro_frontend(id_v360, "Página do V360 não carregou a tempo")
                     salvar_metrica(id_v360, "erro")
                     atualizar_log_frontend(f"Aviso: ID {id_v360} - Página não carregou.", "warning")
-                    atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+                    atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
                     continue
                 
                 if "Analisar - Divergência Entre Pedido de Compras e Medição" not in titulo_etapa:
@@ -782,7 +815,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     atualizar_erro_frontend(id_v360, "ID não está na etapa de criar pedido do zero.")
                     salvar_metrica(id_v360, "erro")
                     atualizar_log_frontend(f"Aviso: ID {id_v360} não está na etapa de criar pedido do zero no v360.", "warning")
-                    atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+                    atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
                     continue
 
                 v_solicitacao = wait.until(EC.presence_of_element_located((By.ID, "acceptance_term_purchase_order"))).get_attribute("value")
@@ -800,7 +833,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     salvar_erro_txt(id_v360, f"Possui pedido ({v_solicitacao}) no lugar da solicitação. Verifique manualmente.")
                     atualizar_erro_frontend(id_v360, f"Possui pedido ({v_solicitacao}) no lugar da solicitação.")
                     salvar_metrica(id_v360, "erro")
-                    atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+                    atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
                     continue
                     
                 # se a medição for da Kora (1400), avisa que é da Kora pois o processo para fazer pedido da Kora é diferente e no momento deve ser feito manual.
@@ -1198,7 +1231,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                             atualizar_erro_frontend(id_v360, "Erro ao gravar documento no SAP")
                             salvar_metrica(id_v360, "erro")
                             erro_ja_registrado = True  # 999999: evita duplicar
-                            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+                            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
                             break
                     except:
                         pass
@@ -1218,11 +1251,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 
                 # Se encontrou pedido, continua
                 if pedido_gerado:
-                    contadores[0] += 1  # sucesso
-                    salvar_backup(id_v360, pedido_gerado)
-                    salvar_metrica(id_v360, "sucesso")
-                    atualizar_log_frontend(f"Sucesso: Pedido criado. Número: {pedido_gerado}", "success")
-                    atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+                    atualizar_log_frontend(f"Pedido SAP criado: {pedido_gerado}. Atualizando V360...", "info")
 
                     atualizar_log_frontend("DEBUG: Voltando para V360...")
 
@@ -1303,13 +1332,14 @@ def executar_automacao(ids_processar, nome_perfil=None):
                             driver.refresh()
                     
                     if not status_correto:
-                        atualizar_log_frontend(f"[FALHA] Verificar pedido e medição do id #{id_v360}", "error")
-                        contadores[1] += 1  # erro
-                        salvar_erro_txt(id_v360, "Status não atualizou após tentar novamente")
-                        atualizar_erro_frontend(id_v360, "Status não atualizou após tentar novamente")
-                        salvar_metrica(id_v360, "erro")
-                        atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
-                        continue 
+                        atualizar_log_frontend(f"[PARCIAL] Pedido {pedido_gerado} criado mas V360 não liberou", "warning")
+                        contadores[3] += 1  # parcial
+                        salvar_backup(id_v360, f"PEDIDO {pedido_gerado} CRIADO - V360 NÃO LIBEROU")
+                        salvar_erro_txt(id_v360, f"Pedido {pedido_gerado} criado mas V360 não liberou")
+                        atualizar_parcial_frontend(id_v360, f"Pedido {pedido_gerado} criado - V360 não liberou", "v360")
+                        salvar_metrica(id_v360, "parcial")
+                        atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                        continue
 
                     # --- marcar AV e FEITO no kora-medicoes.web.app ---
                     driver.switch_to.window(kora_handle)
@@ -1320,9 +1350,15 @@ def executar_automacao(ids_processar, nome_perfil=None):
                                         
                     btn_feito = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'FEITO')]")))
                     btn_feito.click()
-                    atualizar_log_frontend(f"✅ ID {id_v360} LIBERADO!")
+                    
+                    # TUDO CERTO: pedido SAP + V360 + FEITO
+                    contadores[0] += 1  # sucesso
+                    salvar_backup(id_v360, pedido_gerado)
+                    salvar_metrica(id_v360, "sucesso")
                     tempo_total = (datetime.now() - tempo_inicio).total_seconds()
-                    atualizar_sucesso_frontend(id_v360, pedido_gerado, tempo_total)                    
+                    atualizar_log_frontend(f"✅ ID {id_v360} LIBERADO com pedido {pedido_gerado}!", "success")
+                    atualizar_sucesso_frontend(id_v360, pedido_gerado, tempo_total)
+                    atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)                   
 
                 else:
                     if not erro_ja_registrado:  # 999999: so registra se nao foi antes
@@ -1331,7 +1367,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                         salvar_erro_txt(id_v360, "ALERTA: Pedido não localizado após tentar salvar. Verificar manualmente.")
                         atualizar_erro_frontend(id_v360, "ALERTA: Pedido não localizado após tentar salvar. Verificar manualmente.")
                         salvar_metrica(id_v360, "erro")
-                        atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+                        atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
 
             except Exception as e:
                 import traceback
@@ -1340,7 +1376,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 salvar_erro_txt(id_v360, str(e)[:200])
                 atualizar_erro_frontend(id_v360, str(e)[:200])
                 salvar_metrica(id_v360, "erro")
-                atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], cont_total)
+                atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
             finally:
                 if sap_handle:
                     try:
