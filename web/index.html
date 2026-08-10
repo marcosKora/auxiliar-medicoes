@@ -61,7 +61,18 @@
                 </select>
                 <button onclick="togglePerfilModal()" class="text-[#b3b3b3] hover:text-white text-xs transition-colors nav-btn">+ Perfil</button>
                 <button onclick="deletarPerfil()" class="text-[#6a6a6a] hover:text-red-400 text-xs transition-colors nav-btn">🗑</button>
-                <button onclick="copiarLogsRaw()" class="text-[#b3b3b3] hover:text-white text-xs transition-colors nav-btn">📋 Copiar Logs</button>
+                <div class="relative inline-block">
+                    <button id="btn-copiar-logs" class="text-[#b3b3b3] hover:text-white text-xs transition-colors nav-btn">📋 Copiar Logs</button>
+                    <div id="copiar-logs-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-[#282828] rounded-md shadow-lg z-50">
+                        <button onclick="copiarLogsRaw('todos')" class="block w-full text-left px-4 py-2 text-xs text-[#b3b3b3] hover:bg-[#222] hover:text-white transition-colors">📋 Todos</button>
+                        <button onclick="copiarLogsRaw('sucesso')" class="block w-full text-left px-4 py-2 text-xs text-[#b3b3b3] hover:bg-[#222] hover:text-white transition-colors">✅ Sucesso</button>
+                        <button onclick="copiarLogsRaw('parcial')" class="block w-full text-left px-4 py-2 text-xs text-[#b3b3b3] hover:bg-[#222] hover:text-white transition-colors">⚠️ Parcial (Todos)</button>
+                        <button onclick="copiarLogsRaw('parcial_v360')" class="block w-full text-left px-4 py-2 text-xs text-[#b3b3b3] hover:bg-[#222] hover:text-white transition-colors">⚠️ Parcial (V360)</button>
+                        <button onclick="copiarLogsRaw('parcial_kora')" class="block w-full text-left px-4 py-2 text-xs text-[#b3b3b3] hover:bg-[#222] hover:text-white transition-colors">⚠️ Parcial (Painel Kora)</button>
+                        <button onclick="copiarLogsRaw('solicitante')" class="block w-full text-left px-4 py-2 text-xs text-[#b3b3b3] hover:bg-[#222] hover:text-white transition-colors">🔄 Solicitante</button>
+                        <button onclick="copiarLogsRaw('erro')" class="block w-full text-left px-4 py-2 text-xs text-[#b3b3b3] hover:bg-[#222] hover:text-white transition-colors">❌ Erro</button>
+                    </div>
+                </div>
                 <button onclick="iniciarProcesso()" class="btn-start nav-btn">Iniciar</button>
                 <button onclick="toggleConfig()" class="text-[#b3b3b3] hover:text-white text-sm transition-colors tracking-wide nav-btn">Configurações</button>
                 <button onclick="limparLogs()" class="text-[#6a6a6a] hover:text-white text-sm transition-colors tracking-wide nav-btn">Limpar</button>
@@ -94,6 +105,7 @@
                 <div class="bg-[#181818] border-b border-[#282828] px-6 py-3 flex items-center gap-10">
                     <div class="flex items-center gap-2"><span class="metric-label">Total</span><span id="metric-total" class="metric-badge">0</span></div>
                     <div class="flex items-center gap-2"><span class="metric-label">Sucesso</span><span id="metric-success" class="metric-badge">0</span></div>
+                    <div class="flex items-center gap-2"><span class="metric-label">Parcial</span><span id="metric-parcial" class="metric-badge">0</span></div>
                     <div class="flex items-center gap-2"><span class="metric-label">Solicitante</span><span id="metric-solicitante" class="metric-badge">0</span></div>
                     <div class="flex items-center gap-2"><span class="metric-label">Erro</span><span id="metric-error" class="metric-badge">0</span></div>
                     <div class="flex items-center gap-2"><span class="metric-label">Fila</span><span id="metric-fila" class="metric-badge">0</span></div>
@@ -108,6 +120,10 @@
                 <div class="bg-[#181818] border-t border-[#282828] px-6 py-3 flex gap-3">
                     <div onclick="openModal('sucesso')" class="flex-1 bg-[#121212] border border-[#282828] rounded-md card-hover cursor-pointer">
                         <span class="text-[#b3b3b3] text-xs uppercase tracking-wider font-medium">Pedidos Prontos</span>
+                        <span class="text-[#6a6a6a] text-xs">Abrir →</span>
+                    </div>
+                    <div onclick="openModal('parcial')" class="flex-1 bg-[#121212] border border-[#282828] rounded-md card-hover cursor-pointer">
+                        <span class="text-[#b3b3b3] text-xs uppercase tracking-wider font-medium">Parcial</span>
                         <span class="text-[#6a6a6a] text-xs">Abrir →</span>
                     </div>
                     <div onclick="openModal('solicitante')" class="flex-1 bg-[#121212] border border-[#282828] rounded-md card-hover cursor-pointer">
@@ -169,8 +185,18 @@
     </div>
 
     <script>
-        let metricasSessao = { sucesso: 0, erro: 0, solicitante: 0, total: 0 };
-        let cacheSucesso = [], cacheErro = [], cacheSolicitante = [];
+        let metricasSessao = { sucesso: 0, erro: 0, solicitante: 0, parcial: 0, total: 0 };
+        let cacheSucesso = [], cacheErro = [], cacheSolicitante = [], cacheParcial = [];
+        let filtroParcialAtivo = 'todos';
+        
+        // Dropdown do botão Copiar Logs
+        document.getElementById('btn-copiar-logs').addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('copiar-logs-dropdown').classList.toggle('hidden');
+        });
+        document.addEventListener('click', function() {
+            document.getElementById('copiar-logs-dropdown').classList.add('hidden');
+        });
         
         async function initApp() {
             updateSplash(10, 'Verificando acesso');
@@ -243,9 +269,10 @@
             }
         });
         
-        async function copiarLogsRaw() {
-            const logs = await eel.copiar_logs_raw()();
-            if (!logs) { alert('Nenhum log disponível.'); return; }
+        async function copiarLogsRaw(filtro = 'todos') {
+            document.getElementById('copiar-logs-dropdown').classList.add('hidden');
+            const logs = await eel.copiar_logs_raw(filtro)();
+            if (!logs || logs === 'Nenhum log encontrado para este filtro.') { alert('Nenhum log encontrado para este filtro.'); return; }
             navigator.clipboard.writeText(logs).then(() => alert('Logs copiados!')).catch(() => alert('Erro ao copiar.'));
         }
         
@@ -278,9 +305,15 @@
 
         eel.expose(addSolicitante);
         function addSolicitante(ts, id, msg) { cacheSolicitante.push({ts, id, info: msg}); if (cacheSolicitante.length > 50) cacheSolicitante.shift(); }
+
+        eel.expose(addParcial);
+        function addParcial(ts, id, msg, origem = 'v360') { 
+            cacheParcial.push({ts, id, info: msg, origem: origem}); 
+            if (cacheParcial.length > 50) cacheParcial.shift(); 
+        }
         
         function openModal(tipo) {
-            const titles = { 'sucesso': 'Pedidos Prontos', 'solicitante': 'Enviados ao Solicitante', 'erro': 'IDs com Erro', 'metricas': 'Métricas' };
+            const titles = { 'sucesso': 'Pedidos Prontos', 'parcial': 'Parcial (Pedido criado mas não finalizado)', 'solicitante': 'Enviados ao Solicitante', 'erro': 'IDs com Erro', 'metricas': 'Métricas' };
             document.getElementById('modal-title').textContent = titles[tipo] || 'Detalhes';
             const content = document.getElementById('modal-content');
             
@@ -307,6 +340,8 @@
                 document.getElementById('modal-data-fim').addEventListener('input', loadMetricasModal);
                 document.getElementById('modal-data-fim').addEventListener('keyup', function(e) { if (e.key === 'Enter') loadMetricasModal(); });
                 loadMetricasModal();
+            } else if (tipo === 'parcial') {
+                renderParcialModal(content);
             } else {
                 const cache = tipo === 'sucesso' ? cacheSucesso : tipo === 'erro' ? cacheErro : cacheSolicitante;
                 content.innerHTML = cache.length === 0 
@@ -314,6 +349,39 @@
                     : cache.map(item => `<p class="border-b border-[#282828]/50 pb-1 mb-1 text-[#b3b3b3]"><span class="text-[#6a6a6a]">${item.ts}</span> <span>ID ${item.id} → ${item.info}</span></p>`).join('');
             }
             document.getElementById('detail-modal').classList.remove('hidden');
+        }
+        
+        function renderParcialModal(content) {
+            filtroParcialAtivo = 'todos';
+            content.innerHTML = `
+                <div class="flex items-center gap-3 mb-4">
+                    <button onclick="filtrarParcial('todos')" id="parcial-btn-todos" class="px-3 py-1.5 text-xs rounded-md bg-white text-black font-medium">Todos</button>
+                    <button onclick="filtrarParcial('v360')" id="parcial-btn-v360" class="px-3 py-1.5 text-xs rounded-md bg-[#222] text-[#b3b3b3] hover:bg-[#333] transition-colors">V360</button>
+                    <button onclick="filtrarParcial('kora')" id="parcial-btn-kora" class="px-3 py-1.5 text-xs rounded-md bg-[#222] text-[#b3b3b3] hover:bg-[#333] transition-colors">Painel Kora</button>
+                </div>
+                <div id="parcial-list"></div>
+            `;
+            atualizarListaParcial();
+        }
+        
+        function filtrarParcial(filtro) {
+            filtroParcialAtivo = filtro;
+            document.getElementById('parcial-btn-todos').className = filtro === 'todos' ? 'px-3 py-1.5 text-xs rounded-md bg-white text-black font-medium' : 'px-3 py-1.5 text-xs rounded-md bg-[#222] text-[#b3b3b3] hover:bg-[#333] transition-colors';
+            document.getElementById('parcial-btn-v360').className = filtro === 'v360' ? 'px-3 py-1.5 text-xs rounded-md bg-white text-black font-medium' : 'px-3 py-1.5 text-xs rounded-md bg-[#222] text-[#b3b3b3] hover:bg-[#333] transition-colors';
+            document.getElementById('parcial-btn-kora').className = filtro === 'kora' ? 'px-3 py-1.5 text-xs rounded-md bg-white text-black font-medium' : 'px-3 py-1.5 text-xs rounded-md bg-[#222] text-[#b3b3b3] hover:bg-[#333] transition-colors';
+            atualizarListaParcial();
+        }
+        
+        function atualizarListaParcial() {
+            const lista = document.getElementById('parcial-list');
+            if (!lista) return;
+            let filtrados = cacheParcial;
+            if (filtroParcialAtivo === 'v360') filtrados = cacheParcial.filter(item => item.origem === 'v360');
+            if (filtroParcialAtivo === 'kora') filtrados = cacheParcial.filter(item => item.origem === 'kora');
+            
+            lista.innerHTML = filtrados.length === 0 
+                ? '<p class="text-[#6a6a6a] text-sm">Nenhum registro encontrado.</p>'
+                : filtrados.map(item => `<p class="border-b border-[#282828]/50 pb-1 mb-1 text-[#b3b3b3]"><span class="text-[#6a6a6a]">${item.ts}</span> <span class="text-yellow-500">⚠</span> <span>ID ${item.id} → ${item.info}</span> <span class="text-[10px] text-[#6a6a6a] uppercase">[${item.origem === 'v360' ? 'V360' : 'Painel Kora'}]</span></p>`).join('');
         }
         
         async function loadMetricasModal() {
@@ -324,10 +392,12 @@
             const dataFim = document.getElementById('modal-data-fim').value || null;
             let m = op === 'sessao' ? metricasSessao : await eel.get_metricas(op, dataIni, dataFim)();
             document.getElementById('modal-metricas-result').innerHTML = `
-                <div class="flex items-center gap-10 justify-center">
+                <div class="flex items-center gap-10 justify-center flex-wrap">
                     <div class="text-center"><span class="text-3xl font-light text-white">${m.total}</span><p class="text-[#6a6a6a] text-xs mt-1.5 uppercase tracking-wider">Total</p></div>
                     <div class="w-px h-10 bg-[#282828]"></div>
                     <div class="text-center"><span class="text-3xl font-light text-white">${m.sucesso}</span><p class="text-[#6a6a6a] text-xs mt-1.5 uppercase tracking-wider">Sucesso</p></div>
+                    <div class="w-px h-10 bg-[#282828]"></div>
+                    <div class="text-center"><span class="text-3xl font-light text-white">${m.parcial || 0}</span><p class="text-[#6a6a6a] text-xs mt-1.5 uppercase tracking-wider">Parcial</p></div>
                     <div class="w-px h-10 bg-[#282828]"></div>
                     <div class="text-center"><span class="text-3xl font-light text-white">${m.solicitante}</span><p class="text-[#6a6a6a] text-xs mt-1.5 uppercase tracking-wider">Solicitante</p></div>
                     <div class="w-px h-10 bg-[#282828]"></div>
@@ -350,13 +420,14 @@
         }
         
         eel.expose(updateMetrics);
-        function updateMetrics(s, e, sol, t) {
-            metricasSessao = { sucesso: s, erro: e, solicitante: sol, total: t };
+        function updateMetrics(s, e, sol, p, t) {
+            metricasSessao = { sucesso: s, erro: e, solicitante: sol, parcial: p, total: t };
             document.getElementById('metric-success').textContent = s;
             document.getElementById('metric-error').textContent = e;
             document.getElementById('metric-solicitante').textContent = sol;
+            document.getElementById('metric-parcial').textContent = p;
             document.getElementById('metric-total').textContent = t;
-            document.getElementById('metric-fila').textContent = t - (s + e + sol);
+            document.getElementById('metric-fila').textContent = t - (s + e + sol + p);
         }
         
         document.getElementById('ids-input').addEventListener('input', function() {
@@ -369,8 +440,8 @@
             if (!tx) { alert('Insira IDs para processar.'); return; }
             const ids = tx.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
             if (!ids.length) { alert('Nenhum ID válido.'); return; }
-            metricasSessao = { sucesso: 0, erro: 0, solicitante: 0, total: ids.length };
-            updateMetrics(0, 0, 0, ids.length);
+            metricasSessao = { sucesso: 0, erro: 0, solicitante: 0, parcial: 0, total: ids.length };
+            updateMetrics(0, 0, 0, 0, ids.length);
             document.getElementById('progress-container').classList.remove('hidden');
             document.getElementById('progress-bar').style.width = '0%';
             document.getElementById('log-container').innerHTML = '<p class="log-line active">Iniciando processamento...</p>';
@@ -384,7 +455,7 @@
                 document.getElementById('ids-input').value = '';
                 document.getElementById('ids-count').textContent = '0 IDs';
                 document.getElementById('log-container').innerHTML = '<p class="log-line">Sistema inicializado.</p><p class="log-line">Aguardando IDs para processamento.</p>';
-                cacheSucesso = []; cacheErro = []; cacheSolicitante = [];
+                cacheSucesso = []; cacheErro = []; cacheSolicitante = []; cacheParcial = [];
             }
         }
         window.onload = initApp;
