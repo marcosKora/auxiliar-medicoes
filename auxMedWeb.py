@@ -562,6 +562,46 @@ def executar_automacao(ids_processar, nome_perfil=None):
         except Exception as e_envio:
             atualizar_log_frontend(f"Erro ao enviar para solicitante: {e_envio}", "error")
 
+    def marcar_cancelado_kora(id_v):
+        """Marca a medição como Cancelado no painel Kora (sem mexer no V360)"""
+        try:
+            driver.switch_to.window(kora_handle)
+            campo_pesquisa = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[placeholder='Pesquisar...']")))
+            campo_pesquisa.clear()
+            campo_pesquisa.send_keys(id_v)
+            time.sleep(0.5)
+            
+            btn_obs = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[@title='Observação']")))
+            btn_obs.click()
+            time.sleep(1)
+            
+            btn_cancelado = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Cancelado')]")))
+            time.sleep(0.5)
+            btn_cancelado.click()
+            time.sleep(0.5)
+        except Exception as e_cancel:
+            atualizar_log_frontend(f"Erro ao marcar cancelado no Kora: {e_cancel}", "error")
+
+    def marcar_solicitante_kora(id_v):
+        """Marca como Enviado para o Solicitante no Kora (quando já estava nesse status no V360)"""
+        try:
+            driver.switch_to.window(kora_handle)
+            campo_pesquisa = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[placeholder='Pesquisar...']")))
+            campo_pesquisa.clear()
+            campo_pesquisa.send_keys(id_v)
+            time.sleep(0.5)
+            
+            btn_obs = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[@title='Observação']")))
+            btn_obs.click()
+            time.sleep(1)
+            
+            btn_enviado_sol = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Enviado para o solicitante')]")))
+            time.sleep(0.5)
+            btn_enviado_sol.click()
+            time.sleep(0.5)
+        except Exception as e_sol:
+            atualizar_log_frontend(f"Erro ao marcar solicitante no Kora: {e_sol}", "error")            
+
     def processar_guarda_chuva(id_v360, kora_handle, v360_handle):
         # caso seja pedido guarda-chuva, precisa pegar o número do pedido e o tipo do pedido no Kora para preencher no V360, então aqui tem um processo específico para isso
         driver.switch_to.window(kora_handle)
@@ -597,6 +637,18 @@ def executar_automacao(ids_processar, nome_perfil=None):
             atualizar_log_frontend(f"Aviso: ID {id_v360} - Página não carregou.", "warning")
             atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
             return False
+        
+        titulo_lower_gc = titulo_etapa.strip().lower()
+        if "fim - processo cancelado" in titulo_lower_gc:
+            atualizar_log_frontend(f"ID {id_v360}: Guarda-chuva já cancelado. Marcando como sucesso.")
+            marcar_cancelado_kora(id_v360)
+            contadores[0] += 1
+            salvar_backup(id_v360, "GUARDA-CHUVA CANCELADO")
+            salvar_metrica(id_v360, "sucesso")
+            atualizar_sucesso_frontend(id_v360, "Cancelada", 0)
+            logs_raw.append(f"SUCESSO: {id_v360} - Guarda-chuva já cancelado")
+            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+            return True
         
         btn_editar = wait.until(EC.element_to_be_clickable((By.ID, "nav-edit-tab")))
         time.sleep(1)
@@ -797,7 +849,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 driver.switch_to.window(v360_handle)
                 driver.get(f"https://kora.virtual360.io/nf/acceptance_terms/{id_v360}")
                 
-                # ver se está na etapa certa do setor de contratos, caso esteja, faça, caso contrário, registre erro e vá para o próximo id
+                # ver se está na etapa certa do setor de contratos, caso esteja, faça, caso contrário, verifica status alternativos
                 try:
                     titulo_etapa = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "checkout-bar-item-title"))).text
                 except:
@@ -809,12 +861,38 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
                     continue
                 
-                if "Analisar - Divergência Entre Pedido de Compras e Medição" not in titulo_etapa:
+                titulo_lower = titulo_etapa.strip().lower()
+                
+                # NOVO: Se já foi cancelado, vai pra sucesso
+                if "fim - processo cancelado" in titulo_lower:
+                    atualizar_log_frontend(f"ID {id_v360}: Processo cancelado. Marcando como sucesso.")
+                    marcar_cancelado_kora(id_v360)
+                    contadores[0] += 1  # sucesso
+                    salvar_backup(id_v360, "MEDIÇÃO CANCELADA")
+                    salvar_metrica(id_v360, "sucesso")
+                    atualizar_sucesso_frontend(id_v360, "Cancelada", 0)
+                    logs_raw.append(f"SUCESSO: {id_v360} - Medição já cancelada")
+                    atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                    continue
+                
+                # NOVO: Se já está na alçada do solicitante (enviado previamente)
+                if "analisar - informações adicionais solicitante" in titulo_lower:
+                    atualizar_log_frontend(f"ID {id_v360}: Já está com o solicitante (informações adicionais).")
+                    marcar_solicitante_kora(id_v360)
+                    contadores[2] += 1  # solicitante
+                    salvar_backup(id_v360, "SOLICITANTE: Já enviado ao solicitante")
+                    salvar_metrica(id_v360, "solicitante")
+                    atualizar_solicitante_frontend(id_v360, "Previamente enviado ao solicitante")
+                    logs_raw.append(f"SOLICITANTE: {id_v360} - Previamente enviado ao solicitante")
+                    atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                    continue
+                
+                if "analisar - divergência entre pedido de compras e medição" not in titulo_lower:
                     contadores[1] += 1  # erro
-                    salvar_erro_txt(id_v360, "ID não está na etapa de criar pedido do zero.")
-                    atualizar_erro_frontend(id_v360, "ID não está na etapa de criar pedido do zero.")
+                    salvar_erro_txt(id_v360, f"ID não está na etapa esperada. Status: {titulo_etapa}")
+                    atualizar_erro_frontend(id_v360, f"Status inesperado: {titulo_etapa}")
                     salvar_metrica(id_v360, "erro")
-                    atualizar_log_frontend(f"Aviso: ID {id_v360} não está na etapa de criar pedido do zero no v360.", "warning")
+                    atualizar_log_frontend(f"Aviso: ID {id_v360} com status inesperado: {titulo_etapa}", "warning")
                     atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
                     continue
 
