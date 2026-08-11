@@ -523,7 +523,9 @@ def executar_automacao(ids_processar, nome_perfil=None):
 
             # digita mensagem no campo de texto para enviar ao solicitante
             editor = wait.until(EC.presence_of_element_located((By.ID, "note_text_show")))
-            driver.execute_script(f"arguments[0].innerHTML = '<div>{msg}</div>';", editor)
+            # Usa JSON.stringify para escapar caracteres especiais (aspas, quebras de linha, etc.)
+            msg_escapada = json.dumps(msg)
+            driver.execute_script(f"arguments[0].innerHTML = '<div>' + {msg_escapada} + '</div>';", editor)
             time.sleep(1)
 
             # confirma envio da mensagem para o solicitante
