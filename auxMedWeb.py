@@ -466,6 +466,16 @@ def executar_automacao(ids_processar, nome_perfil=None):
         return False
 
     def enviar_ao_solicitante(id_v, tipo_erro, org_atual=None):
+        # NOVO: Bloqueia envio para unidades novas
+        if org_atual in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
+            atualizar_log_frontend(f"Aviso: ID {id_v} - {tipo_erro} ({org_atual}). Não enviado ao solicitante.", "warning")
+            atualizar_solicitante_frontend(id_v, f"{tipo_erro} ({org_atual}) - Não enviado")
+            contadores[2] += 1
+            salvar_backup(id_v, f"{tipo_erro} ({org_atual}) - NÃO ENVIADO")
+            salvar_metrica(id_v, "solicitante")
+            logs_raw.append(f"SOLICITANTE: {id_v} - {tipo_erro} ({org_atual}) - Não enviado")
+            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+            return
         try:
             driver.switch_to.window(v360_handle)
             driver.get(f"https://kora.virtual360.io/nf/acceptance_terms/{id_v}")
