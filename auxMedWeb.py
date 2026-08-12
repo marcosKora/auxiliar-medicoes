@@ -494,7 +494,14 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 if org_atual in ["1418", "2001", "2901"]:
                     msg = mensagens_dict.get("de_para_errado_especifico", f"{saudacao} A solicitação não refletiu corretamente, favor disponibilizar uma nova.")
                 elif org_atual in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
-                    msg = mensagens_dict.get("de_para_errado_unidades_novas", f"{saudacao} A solicitação disponibilizada não está refletindo corretamente no SAP, por gentileza poderia gerar uma nova?\n\nFavor verificar se o código utilizado na criação da solicitação consta na planilha abaixo, de acordo com a unidade da medição:\n\nhttps://docs.google.com/spreadsheets/d/1j3D02KadNnkSQEK39gZBKnG9A_ZsiuXxri8LGb5Q4XI/edit?usp=sharing")
+                    atualizar_log_frontend(f"Aviso: ID {id_v} - de_para_errado ({org_atual}). Não enviado ao solicitante.", "warning")
+                    atualizar_solicitante_frontend(id_v, f"De/Para errado ({org_atual}) - Não enviado")
+                    contadores[2] += 1
+                    salvar_backup(id_v, f"DE_PARA_ERRADO ({org_atual}) - NÃO ENVIADO")
+                    salvar_metrica(id_v, "solicitante")
+                    logs_raw.append(f"SOLICITANTE: {id_v} - De/Para errado ({org_atual}) - Não enviado")
+                    atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                    return
                 else:
                     msg = mensagens_dict.get("de_para_errado_geral", f"{saudacao} A solicitação MV disponibilizada não está refletindo no SAP, por gentileza poderia gerar uma nova? Favor verificar também o material usado, de acordo com a unidade da medição, na planilha: https://docs.google.com/spreadsheets/d/1ho46nlMd3eDM2Axce8XBx2RNsQ2h_r06/edit?gid=8752513#gid=8752513")
             elif tipo_erro == "cnpj_sem_cadastro":
