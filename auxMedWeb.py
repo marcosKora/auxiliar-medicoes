@@ -941,7 +941,46 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 if v_org_cod == "1400":
                     atualizar_log_frontend(f"Aviso: {id_v360} é da Kora, fazer manual.", "warning")
                     continue
-                    
+                
+                # NOVO: Verifica CNPJ do Tomador (customer_identification_number)
+                cnpj_tomador = None
+                try:
+                    select_element = driver.find_element(By.ID, "acceptance_term_customer_identification_number")
+                    option_selected = select_element.find_element(By.CSS_SELECTOR, "option[selected='selected']")
+                    cnpj_tomador = option_selected.get_attribute("value")
+                except:
+                    try:
+                        cnpj_tomador = driver.find_element(By.ID, "acceptance_term_customer_identification_number").get_attribute("value")
+                    except:
+                        cnpj_tomador = None
+                
+                if cnpj_tomador and v_org_cod:
+                    import requests as req
+                    url_csv = "https://raw.githubusercontent.com/marcosKora/auxiliar-medicoes/refs/heads/main/config/cnpj_deParaUnidades.csv"
+                    try:
+                        response_csv = req.get(url_csv, timeout=10)
+                        linhas_csv = response_csv.text.strip().split('\n')
+                        cnpj_esperado = None
+                        for linha in linhas_csv:
+                            partes = linha.strip().split('\t')
+                            if len(partes) >= 2 and partes[0].strip() == v_org_cod:
+                                cnpj_esperado = partes[1].strip()
+                                break
+                        
+                        if cnpj_esperado and cnpj_tomador.strip() == cnpj_esperado:
+                            atualizar_log_frontend(f"Tomador confere? Sim ({cnpj_tomador})")
+                        else:
+                            atualizar_log_frontend(f"Tomador confere? Não ({cnpj_tomador} vs {cnpj_esperado})", "warning")
+                            contadores[1] += 1
+                            salvar_erro_txt(id_v360, "Tomador da medição divergente da organização de compras. Cancele a medição e avise ao solicitante.")
+                            atualizar_erro_frontend(id_v360, "Tomador da medição divergente da organização de compras. Cancele a medição e avise ao solicitante.")
+                            salvar_metrica(id_v360, "erro")
+                            logs_raw.append(f"ERRO: {id_v360} - Tomador da medição divergente da organização de compras. Cancele a medição e avise ao solicitante.")
+                            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                            continue
+                    except Exception as e_csv:
+                        atualizar_log_frontend(f"Erro ao verificar CNPJ do tomador: {e_csv}", "error")
+                
                 v_iva = "ZZ" 
                 csv_path = resource_path(f"config/{v_org_cod}.csv")
                 if os.path.exists(csv_path):
