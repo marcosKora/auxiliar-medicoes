@@ -962,7 +962,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                         linhas_csv = response_csv.text.strip().split('\n')
                         cnpj_esperado = None
                         for linha in linhas_csv:
-                            partes = linha.strip().split('\t')
+                            partes = linha.strip().split(',')
                             if len(partes) >= 2 and partes[0].strip() == v_org_cod:
                                 cnpj_esperado = partes[1].strip()
                                 break
