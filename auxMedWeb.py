@@ -19,7 +19,7 @@ import threading
 import eel
 
 # CODIGO TEMPORARIO (INTEGRAÇÃO)
-# MUDANÇAS EM RELAÇÃO AO (N1): NÃO ENVIA IDS DAS NOVAS UNIDADES (1701, 1801, 1901, 2201, 2301) PARA SOLICITANTE e CONFERE TOMADOR X ORG DE COMPRAS NA MEDIÇÃO
+# MUDANÇAS EM RELAÇÃO AO (N1): (corrigido) NÃO ENVIA IDS DAS NOVAS UNIDADES (1701, 1801, 1901, 2201, 2301) PARA SOLICITANTE e CONFERE TOMADOR X ORG DE COMPRAS NA MEDIÇÃO
 # OBS: AINDA NÃO TEM O TRATAMENTO DE ERRO DE TENTAR OUTROS CODIGOS DO FORNECEDOR CASO O PRIMEIRO ESTEJA BLOQUEADO
 
 # Inicializa o Eel
@@ -578,7 +578,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
             btn_obs.click()
             time.sleep(1)
             
-            btn_enviado_sol = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Enviado para o solicitante')]")))
+            btn_enviado_sol = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Enviado ao Solicitante')]")))
             time.sleep(0.5)
             btn_enviado_sol.click()
             time.sleep(0.5)
@@ -618,7 +618,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
             btn_obs.click()
             time.sleep(1)
             
-            btn_enviado_sol = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Enviado para o solicitante')]")))
+            btn_enviado_sol = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Enviado ao Solicitante')]")))
             time.sleep(0.5)
             btn_enviado_sol.click()
             time.sleep(0.5)
@@ -757,7 +757,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
         campo_pesquisa.send_keys(id_v360)
         time.sleep(1)
         
-        btn_feito = wait.until(EC.visibility_of_element_located((By.XPATH, "(//button[text()='FEITO'])[1]")))
+        btn_feito = wait.until(EC.visibility_of_element_located((By.XPATH, "(//button[contains(., 'FEITO')])[1]")))
         time.sleep(1)
         btn_feito.click()
         time.sleep(0.5)
@@ -1065,11 +1065,20 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     try:
                         msg_inexistente = driver.find_element(By.ID, "M1:46:::0:5-text").text
                         if "Não existem dados para os critérios de seleção" in msg_inexistente:
-                            atualizar_log_frontend(f"Aviso: ID {id_v360} não foi encontrado na base SAP", "warning")
-                            enviar_ao_solicitante(id_v360, "inexistente_sap")
-                            continue
+                            if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
+                                atualizar_log_frontend(f"Aviso: ID {id_v360} - inexistente_sap ({v_org_cod}). Não enviado ao solicitante.", "warning")
+                                atualizar_solicitante_frontend(id_v360, f"inexistente_sap ({v_org_cod}) - Não enviado")
+                                contadores[2] += 1
+                                salvar_backup(id_v360, f"inexistente_sap ({v_org_cod}) - NÃO ENVIADO")
+                                salvar_metrica(id_v360, "solicitante")
+                                logs_raw.append(f"SOLICITANTE: {id_v360} - inexistente_sap ({v_org_cod}) - Não enviado")
+                                atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                                continue
+                            else:
+                                enviar_ao_solicitante(id_v360, "inexistente_sap")
+                                continue
                     except:
-                        pass  # Não era erro, era a caixinha!
+                        pass
                     
                 except:
                     atualizar_log_frontend(f"Timeout: SAP não respondeu para ID {id_v360}", "warning")
@@ -1181,19 +1190,59 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     msg_erro_fornecedor = driver.find_element(By.ID, "wnd[0]/sbar_msg-txt")
                     texto_erro = msg_erro_fornecedor.get_attribute("title") or msg_erro_fornecedor.text
                     if "Nenhum valor para esta seleção" in texto_erro:
-                        enviar_ao_solicitante(id_v360, "cnpj_sem_cadastro")
-                        continue
+                        if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
+                            atualizar_log_frontend(f"Aviso: ID {id_v360} - cnpj_sem_cadastro ({v_org_cod}). Não enviado ao solicitante.", "warning")
+                            atualizar_solicitante_frontend(id_v360, f"cnpj_sem_cadastro ({v_org_cod}) - Não enviado")
+                            contadores[2] += 1
+                            salvar_backup(id_v360, f"cnpj_sem_cadastro ({v_org_cod}) - NÃO ENVIADO")
+                            salvar_metrica(id_v360, "solicitante")
+                            logs_raw.append(f"SOLICITANTE: {id_v360} - cnpj_sem_cadastro ({v_org_cod}) - Não enviado")
+                            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                            continue
+                        else:
+                            enviar_ao_solicitante(id_v360, "cnpj_sem_cadastro")
+                            continue
                     if "não foi criado para organização de compras" in texto_erro or "não foi criado para a organização de compras" in texto_erro:
-                        enviar_ao_solicitante(id_v360, "cnpj_sem_expansao")
-                        continue
+                        if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
+                            atualizar_log_frontend(f"Aviso: ID {id_v360} - cnpj_sem_expansao ({v_org_cod}). Não enviado ao solicitante.", "warning")
+                            atualizar_solicitante_frontend(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - Não enviado")
+                            contadores[2] += 1
+                            salvar_backup(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - NÃO ENVIADO")
+                            salvar_metrica(id_v360, "solicitante")
+                            logs_raw.append(f"SOLICITANTE: {id_v360} - cnpj_sem_expansao ({v_org_cod}) - Não enviado")
+                            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                            continue
+                        else:
+                            enviar_ao_solicitante(id_v360, "cnpj_sem_expansao")
+                            continue
                 except:
                     texto_body = driver.find_element(By.TAG_NAME, "body").text
                     if "Nenhum valor para esta seleção" in texto_body:
-                        enviar_ao_solicitante(id_v360, "cnpj_sem_cadastro")
-                        continue
+                        if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
+                            atualizar_log_frontend(f"Aviso: ID {id_v360} - cnpj_sem_cadastro ({v_org_cod}). Não enviado ao solicitante.", "warning")
+                            atualizar_solicitante_frontend(id_v360, f"cnpj_sem_cadastro ({v_org_cod}) - Não enviado")
+                            contadores[2] += 1
+                            salvar_backup(id_v360, f"cnpj_sem_cadastro ({v_org_cod}) - NÃO ENVIADO")
+                            salvar_metrica(id_v360, "solicitante")
+                            logs_raw.append(f"SOLICITANTE: {id_v360} - cnpj_sem_cadastro ({v_org_cod}) - Não enviado")
+                            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                            continue
+                        else:
+                            enviar_ao_solicitante(id_v360, "cnpj_sem_cadastro")
+                            continue
                     if "não foi criado para a organização de compras" in texto_body:
-                        enviar_ao_solicitante(id_v360, "cnpj_sem_expansao")
-                        continue
+                        if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
+                            atualizar_log_frontend(f"Aviso: ID {id_v360} - cnpj_sem_expansao ({v_org_cod}). Não enviado ao solicitante.", "warning")
+                            atualizar_solicitante_frontend(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - Não enviado")
+                            contadores[2] += 1
+                            salvar_backup(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - NÃO ENVIADO")
+                            salvar_metrica(id_v360, "solicitante")
+                            logs_raw.append(f"SOLICITANTE: {id_v360} - cnpj_sem_expansao ({v_org_cod}) - Não enviado")
+                            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                            continue
+                        else:
+                            enviar_ao_solicitante(id_v360, "cnpj_sem_expansao")
+                            continue
                 
                 # clicar no botão ir para confirmar a seleção do fornecedor
                 try:
@@ -1224,8 +1273,18 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     return false;
                 """)
                 if fornecedor_com_erro:
-                    enviar_ao_solicitante(id_v360, "cnpj_sem_expansao")
-                    continue
+                    if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
+                        atualizar_log_frontend(f"Aviso: ID {id_v360} - cnpj_sem_expansao ({v_org_cod}). Não enviado ao solicitante.", "warning")
+                        atualizar_solicitante_frontend(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - Não enviado")
+                        contadores[2] += 1
+                        salvar_backup(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - NÃO ENVIADO")
+                        salvar_metrica(id_v360, "solicitante")
+                        logs_raw.append(f"SOLICITANTE: {id_v360} - cnpj_sem_expansao ({v_org_cod}) - Não enviado")
+                        atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                        continue
+                    else:
+                        enviar_ao_solicitante(id_v360, "cnpj_sem_expansao")
+                        continue
 
                 # caso não esteja aberta, abrir a primeira aba dentro do SAP onde tem remessa/fatura para colocar a condição de pagamento, usando CTRL+F2 
                 campo_moeda_element = driver.find_elements(By.CSS_SELECTOR, "input[title*='Código da moeda']")
@@ -1488,7 +1547,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     campo_pesquisa.send_keys(id_v360)
                     time.sleep(0.5)
                                         
-                    btn_feito = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'FEITO')]")))
+                    btn_feito = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'FEITO')]")))
                     btn_feito.click()
                     
                     # TUDO CERTO: pedido SAP + V360 + FEITO
