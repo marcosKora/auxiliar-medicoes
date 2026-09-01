@@ -1547,8 +1547,17 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     campo_pesquisa.send_keys(id_v360)
                     time.sleep(2)
                                         
-                    btn_feito = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'FEITO')]")))
-                    btn_feito.click()
+                    # Tenta clique normal primeiro, se falhar usa JavaScript
+                    try:
+                        btn_feito = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'FEITO')]")))
+                        btn_feito.click()
+                    except:
+                        driver.execute_script("""
+                            const btns = [...document.querySelectorAll("button")];
+                            const btn = btns.find(b => b.textContent.includes('FEITO'));
+                            if (btn) btn.click();
+                        """)
+                    time.sleep(1)
                     
                     # TUDO CERTO: pedido SAP + V360 + FEITO
                     contadores[0] += 1  # sucesso
