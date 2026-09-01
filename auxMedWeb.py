@@ -755,7 +755,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
         campo_pesquisa = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[placeholder='Pesquisar...']")))
         campo_pesquisa.clear()
         campo_pesquisa.send_keys(id_v360)
-        time.sleep(1)
+        time.sleep(2)
         
         btn_feito = wait.until(EC.visibility_of_element_located((By.XPATH, "(//button[contains(., 'FEITO')])[1]")))
         time.sleep(1)
@@ -1545,7 +1545,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     campo_pesquisa = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[placeholder='Pesquisar...']")))
                     campo_pesquisa.clear()
                     campo_pesquisa.send_keys(id_v360)
-                    time.sleep(0.5)
+                    time.sleep(2)
                                         
                     btn_feito = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'FEITO')]")))
                     btn_feito.click()
