@@ -292,10 +292,33 @@
         function addLog(ts, msg, tipo = 'info') {
             const d = document.getElementById('log-container');
             const e = document.createElement('p');
+            
+            // Cabeçalho de ID → estilo diferenciado
+            if (msg.startsWith('🔍 ID')) {
+                e.className = 'log-line active border-t border-[#333] pt-4 mt-4';
+                e.style.color = '#e0e0e0';
+                e.style.fontWeight = '600';
+                e.style.letterSpacing = '0.3px';
+                e.innerHTML = msg;
+                d.appendChild(e); d.scrollTop = d.scrollHeight;
+                return;
+            }
+            
+            // Resumo da sessão → estilo diferenciado
+            if (msg.startsWith('📊 Sessão')) {
+                e.className = 'log-line active border-t border-[#333] pt-4 mt-4';
+                e.style.color = '#e0e0e0';
+                e.style.fontWeight = '600';
+                e.innerHTML = msg;
+                d.appendChild(e); d.scrollTop = d.scrollHeight;
+                return;
+            }
+            
+            // Logs normais
             e.className = 'log-line active';
-            // Torna IDs clicáveis nos logs
             const msgWithLinks = msg.replace(/ID (\d+)/g, 'ID <a href="#" onclick="abrirV360(\'$1\'); return false;" class="id-link">$1</a>');
             e.innerHTML = `[${ts}] ${msgWithLinks}`;
+            
             if (d.querySelector('.log-line') && d.children.length <= 2 && d.querySelector('.log-line').textContent.includes('Aguardando')) d.innerHTML = '';
             d.appendChild(e); d.scrollTop = d.scrollHeight;
             setTimeout(() => { e.classList.remove('active'); e.classList.add('done'); }, 3000);
