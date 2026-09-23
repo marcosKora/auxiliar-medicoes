@@ -364,6 +364,15 @@ def atualizar_metricas_frontend(sucesso, erro, solicitante, parcial, total):
 
 logs_raw = []
 
+def formatar_duracao(segundos):
+    """Formata segundos em 'Xmin Ys' ou 'Xs'"""
+    segundos = int(segundos)
+    if segundos < 60:
+        return f"{segundos}s"
+    minutos = segundos // 60
+    seg = segundos % 60
+    return f"{minutos}min {seg}s"
+
 @eel.expose
 def copiar_logs_raw(filtro="todos"):
     """Copia logs com filtro: todos, sucesso, erro, solicitante, parcial, parcial_v360, parcial_kora"""
@@ -472,8 +481,8 @@ def executar_automacao(ids_processar, nome_perfil=None):
     def enviar_ao_solicitante(id_v, tipo_erro, org_atual=None):
         # NOVO: Bloqueia envio para unidades novas
         if org_atual in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
-            atualizar_log_frontend(f"Aviso: ID {id_v} - {tipo_erro} ({org_atual}). Não enviado ao solicitante.", "warning")
-            atualizar_solicitante_frontend(id_v, f"{tipo_erro} ({org_atual}) - Não enviado")
+            atualizar_log_frontend(f"ID {id_v} — ⛔ BLOQUEADO: {tipo_erro}. Não enviado ao solicitante", "warning")
+            atualizar_solicitante_frontend(id_v, f"{tipo_erro} — Não enviado")
             contadores[2] += 1
             salvar_backup(id_v, f"{tipo_erro} ({org_atual}) - NÃO ENVIADO")
             salvar_metrica(id_v, "solicitante")
@@ -508,7 +517,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 if org_atual in ["1418", "2001", "2901"]:
                     msg = mensagens_dict.get("de_para_errado_especifico", f"{saudacao} A solicitação não refletiu corretamente, favor disponibilizar uma nova.")
                 elif org_atual in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
-                    atualizar_log_frontend(f"Aviso: ID {id_v} - de_para_errado ({org_atual}). Não enviado ao solicitante.", "warning")
+                    atualizar_log_frontend(f"ID {id_v} — ⛔ BLOQUEADO: unidade divergente. Não enviado ao solicitante", "warning")
                     atualizar_solicitante_frontend(id_v, f"De/Para errado ({org_atual}) - Não enviado")
                     contadores[2] += 1
                     salvar_backup(id_v, f"DE_PARA_ERRADO ({org_atual}) - NÃO ENVIADO")
@@ -559,7 +568,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 driver.switch_to.alert.accept()
             except: pass
             
-            atualizar_log_frontend(f"ID {id_v}: Enviado para o solicitante", "warning")
+            atualizar_log_frontend(f"ID {id_v} — 📤 Enviado ao solicitante ({tipo_erro})", "warning")
             atualizar_solicitante_frontend(id_v, f"Enviado ao solicitante: {tipo_erro}")
             # Registrar como solicitante na sidebar e métricas
             contadores[2] += 1  # solicitante
@@ -583,10 +592,10 @@ def executar_automacao(ids_processar, nome_perfil=None):
             btn_enviado_sol.click()
             time.sleep(0.5)
         except Exception as e_envio:
-            atualizar_log_frontend(f"Erro ao enviar para solicitante: {e_envio}", "error")
+            atualizar_log_frontend(f"ID {id_v} — ❌ Erro ao enviar para solicitante: {e_envio}", "error")
 
     def marcar_cancelado_kora(id_v):
-        """Marca a medição como Cancelado no painel Kora (sem mexer no V360)"""
+        """Marca a medição como FEITO no painel Kora (pendência resolvida, mesmo cancelada no V360)"""
         try:
             driver.switch_to.window(kora_handle)
             campo_pesquisa = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input[placeholder='Pesquisar...']")))
@@ -594,16 +603,19 @@ def executar_automacao(ids_processar, nome_perfil=None):
             campo_pesquisa.send_keys(id_v)
             time.sleep(0.5)
             
-            btn_obs = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[@title='Observação']")))
-            btn_obs.click()
-            time.sleep(1)
-            
-            btn_cancelado = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Cancelado')]")))
-            time.sleep(0.5)
-            btn_cancelado.click()
+            # Tenta clique normal primeiro, se falhar usa JavaScript
+            try:
+                btn_feito = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'FEITO')]")))
+                btn_feito.click()
+            except:
+                driver.execute_script("""
+                    const btns = [...document.querySelectorAll("button")];
+                    const btn = btns.find(b => b.textContent.includes('FEITO'));
+                    if (btn) btn.click();
+                """)
             time.sleep(0.5)
         except Exception as e_cancel:
-            atualizar_log_frontend(f"Erro ao marcar cancelado no Kora: {e_cancel}", "error")
+            atualizar_log_frontend(f"ID {id_v} — ❌ Erro ao marcar feito no Kora: {e_cancel}", "error")
 
     def marcar_solicitante_kora(id_v):
         """Marca como Enviado para o Solicitante no Kora (quando já estava nesse status no V360)"""
@@ -623,7 +635,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
             btn_enviado_sol.click()
             time.sleep(0.5)
         except Exception as e_sol:
-            atualizar_log_frontend(f"Erro ao marcar solicitante no Kora: {e_sol}", "error")            
+            atualizar_log_frontend(f"ID {id_v} — ❌ Erro ao marcar solicitante no Kora: {e_sol}", "error")       
 
     def processar_guarda_chuva(id_v360, kora_handle, v360_handle):
         # caso seja pedido guarda-chuva, precisa pegar o número do pedido e o tipo do pedido no Kora para preencher no V360, então aqui tem um processo específico para isso
@@ -643,7 +655,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
         # pegar o tipo do pedido (fixo ou variavel)
         tipo_info = driver.find_element(By.CSS_SELECTOR, "span.bg-slate-100").text
         
-        atualizar_log_frontend(f"Possui contrato GED e pedido pronto ({tipo_info}). Liberando medição.")
+        atualizar_log_frontend(f"ID {id_v360} — 📋 Pedido guarda-chuva pronto ({tipo_info}), liberando medição")
         time.sleep(0.5)
         # preencher no v360
         driver.switch_to.window(v360_handle)
@@ -657,13 +669,13 @@ def executar_automacao(ids_processar, nome_perfil=None):
             salvar_erro_txt(id_v360, "Página do V360 não carregou a tempo")
             atualizar_erro_frontend(id_v360, "Página do V360 não carregou a tempo")
             salvar_metrica(id_v360, "erro")
-            atualizar_log_frontend(f"Aviso: ID {id_v360} - Página não carregou.", "warning")
+            atualizar_log_frontend(f"ID {id_v360} — ❌ Página do V360 não carregou", "error")
             atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
             return False
         
         titulo_lower_gc = titulo_etapa.strip().lower()
         if "fim - processo cancelado" in titulo_lower_gc:
-            atualizar_log_frontend(f"ID {id_v360}: Guarda-chuva já cancelado. Marcando como sucesso.")
+            atualizar_log_frontend(f"ID {id_v360} — ✅ ID se encontra cancelado. Marcando como feito.")
             marcar_cancelado_kora(id_v360)
             contadores[0] += 1
             salvar_backup(id_v360, "GUARDA-CHUVA CANCELADO")
@@ -696,7 +708,19 @@ def executar_automacao(ids_processar, nome_perfil=None):
         """
         driver.execute_script(script_final, num_pedido)
         time.sleep(0.5); time.sleep(0.5); time.sleep(0.5)
-        
+
+        # DESCE A PÁGINA COM PGDN (até 10x, para ao detectar o select)
+        for _ in range(15):
+            try:
+                # Verifica se o select já está visível/clicável
+                span_check = driver.find_element(By.CSS_SELECTOR, "[aria-labelledby='select2-acceptance_term_items_attributes_0_cf_tipo_de_pedido-container']")
+                if span_check.is_displayed():
+                    break
+            except:
+                pass
+            driver.find_element(By.TAG_NAME, "body").send_keys(Keys.PAGE_DOWN)
+            time.sleep(0.03)
+
         # selecionar o tipo de pedido correto no v360 (guarda-chuva variável ou fixo)
         span_select2 = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "[aria-labelledby='select2-acceptance_term_items_attributes_0_cf_tipo_de_pedido-container']")))
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", span_select2)
@@ -741,7 +765,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 driver.refresh()
         
         if not status_correto:
-            atualizar_log_frontend(f"[PARCIAL] Guarda-chuva {num_pedido} - V360 não liberou", "warning")
+            atualizar_log_frontend(f"ID {id_v360} — ⚠️ V360 não liberou (guarda-chuva {num_pedido})", "warning")
             contadores[3] += 1  # parcial
             salvar_backup(id_v360, f"GUARDA-CHUVA {num_pedido} - V360 NÃO LIBEROU")
             salvar_erro_txt(id_v360, f"Guarda-chuva {num_pedido} - V360 não liberou")
@@ -767,7 +791,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
         salvar_backup(id_v360, num_pedido)
         salvar_metrica(id_v360, "sucesso")
         tempo_total = (datetime.now() - tempo_inicio).total_seconds()
-        atualizar_log_frontend(f"✅ ID {id_v360} LIBERADO! (Guarda-chuva {num_pedido})", "success")
+        atualizar_log_frontend(f"ID {id_v360} — ✅ LIBERADO no V360 (guarda-chuva {num_pedido})", "success")
         logs_raw.append(f"SUCESSO: {id_v360} - {num_pedido} - Guarda-chuva {tipo_info} - Liberado")
         atualizar_sucesso_frontend(id_v360, num_pedido, tempo_total)
         atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
@@ -828,7 +852,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
             sap_handle = None
             erro_ja_registrado = False  # 999999: controle de erro duplicado
             try:
-                atualizar_log_frontend(f"Processando ID: {id_v360}...")
+                atualizar_log_frontend(f"🔍 ID {id_v360} — {idx} de {len(ids_processar)}")
                 
                 # verificar se a medição tem pedido pronto no kora-medicoes.web.app, caso tenha, vai liberar no v360, caso não tenha, vai criar o pedido no SAP (avulso) e depois liberar no v360
                 driver.switch_to.window(kora_handle)
@@ -849,12 +873,12 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     except:
                         is_guarda_chuva = False
                 if is_guarda_chuva:
-                    atualizar_log_frontend(f"ID {id_v360} → GUARDA-CHUVA (Pedido: {num_pedido})")
+                    atualizar_log_frontend(f"ID {id_v360} — 🔍 Guarda-chuva (pedido {num_pedido})")
                     processar_guarda_chuva(id_v360, kora_handle, v360_handle)
                     continue
                 
                 # ---- LÓGICA NORMAL (SAP + V360) ----
-                atualizar_log_frontend(f"Não possui contrato no GED. Fazendo avulso.")
+                atualizar_log_frontend(f"ID {id_v360} — 📋 Sem contrato, fazendo avulso")
                 
                 driver.execute_script(f"window.open('https://prd.sap.korasaude.app.br/sap/bc/ui2/flp?sap-client=400&sap-language=PT#PurchaseOrder-create?sap-ui-tech-hint=GUI&uitype=advanced', '_blank');")
                 time.sleep(1)
@@ -880,7 +904,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     salvar_erro_txt(id_v360, "Página do V360 não carregou a tempo")
                     atualizar_erro_frontend(id_v360, "Página do V360 não carregou a tempo")
                     salvar_metrica(id_v360, "erro")
-                    atualizar_log_frontend(f"Aviso: ID {id_v360} - Página não carregou.", "warning")
+                    atualizar_log_frontend(f"ID {id_v360} — ❌ Página do V360 não carregou", "error")
                     atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
                     continue
                 
@@ -888,7 +912,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 
                 # NOVO: Se já foi cancelado, vai pra sucesso
                 if "fim - processo cancelado" in titulo_lower:
-                    atualizar_log_frontend(f"ID {id_v360}: Processo cancelado. Marcando como sucesso.")
+                    atualizar_log_frontend(f"ID {id_v360} — ✅ ID se encontra cancelado. Marcando como feito.")
                     marcar_cancelado_kora(id_v360)
                     contadores[0] += 1  # sucesso
                     salvar_backup(id_v360, "MEDIÇÃO CANCELADA")
@@ -900,7 +924,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 
                 # NOVO: Se já está na alçada do solicitante (enviado previamente)
                 if "analisar - informações adicionais solicitante" in titulo_lower:
-                    atualizar_log_frontend(f"ID {id_v360}: Já está com o solicitante (informações adicionais).")
+                    atualizar_log_frontend(f"ID {id_v360} — 📋 Já está com o solicitante (informações adicionais)")
                     marcar_solicitante_kora(id_v360)
                     contadores[2] += 1  # solicitante
                     salvar_backup(id_v360, "SOLICITANTE: Já enviado ao solicitante")
@@ -915,7 +939,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     salvar_erro_txt(id_v360, f"ID não está na etapa esperada. Status: {titulo_etapa}")
                     atualizar_erro_frontend(id_v360, f"Status inesperado: {titulo_etapa}")
                     salvar_metrica(id_v360, "erro")
-                    atualizar_log_frontend(f"Aviso: ID {id_v360} com status inesperado: {titulo_etapa}", "warning")
+                    atualizar_log_frontend(f"ID {id_v360} — ⚠️ Status inesperado: {titulo_etapa}", "warning")
                     atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
                     continue
 
@@ -929,7 +953,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 
                 # verifica se o campo de solicitação tem realmente uma solicitação e não um pedido aleatório preenchido pelo solicitante, caso tenha um numero de 7 ou mais caracteres, classifica como pedido e avisa no painel que tem um pedido no lugar da solicitação, para que o usuário verifique a situação do pedido.
                 if len(v_solicitacao) >= 7:
-                    atualizar_log_frontend(f"Aviso: {id_v360} possui pedido no lugar da solicitação. Verifique a situação do pedido.", "warning")
+                    atualizar_log_frontend(f"ID {id_v360} — ⚠️ Possui pedido no lugar da solicitação. Verificar manualmente.", "warning")
                     contadores[1] += 1  # erro
                     salvar_erro_txt(id_v360, f"Possui pedido ({v_solicitacao}) no lugar da solicitação. Verifique manualmente.")
                     atualizar_erro_frontend(id_v360, f"Possui pedido ({v_solicitacao}) no lugar da solicitação.")
@@ -939,7 +963,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     
                 # se a medição for da Kora (1400), avisa que é da Kora pois o processo para fazer pedido da Kora é diferente e no momento deve ser feito manual.
                 if v_org_cod == "1400":
-                    atualizar_log_frontend(f"Aviso: {id_v360} é da Kora, fazer manual.", "warning")
+                    atualizar_log_frontend(f"ID {id_v360} — ⚠️ Medição da Kora. Fazer manual.", "warning")
                     continue
                 
                 # NOVO: Verifica CNPJ do Tomador (customer_identification_number)
@@ -955,22 +979,31 @@ def executar_automacao(ids_processar, nome_perfil=None):
                         cnpj_tomador = None
                 
                 if cnpj_tomador and v_org_cod:
-                    import requests as req
-                    url_csv = "https://raw.githubusercontent.com/marcosKora/auxiliar-medicoes/refs/heads/main/config/cnpj_deParaUnidades.csv"
                     try:
-                        response_csv = req.get(url_csv, timeout=10)
-                        linhas_csv = response_csv.text.strip().split('\n')
-                        cnpj_esperado = None
-                        for linha in linhas_csv:
-                            partes = linha.strip().split(',')
-                            if len(partes) >= 2 and partes[0].strip() == v_org_cod:
-                                cnpj_esperado = partes[1].strip()
-                                break
+                        cnpjs_esperados = []
+                        csv_path_tomador = resource_path("config/cnpj_deParaUnidades.csv")
+                        if os.path.exists(csv_path_tomador):
+                            with open(csv_path_tomador, mode='r', encoding='utf-8') as f_csv:
+                                for linha in f_csv:
+                                    partes = linha.strip().split(',')
+                                    if len(partes) >= 2 and partes[0].strip() == v_org_cod:
+                                        cnpjs_esperados.append(partes[1].strip())
                         
-                        if cnpj_esperado and cnpj_tomador.strip() == cnpj_esperado:
-                            atualizar_log_frontend(f"Tomador confere? Sim ({cnpj_tomador})")
+                        # Org não existe no CSV → pendência do robô
+                        if not cnpjs_esperados:
+                            atualizar_log_frontend(f"ID {id_v360} — ❌ ERRO: Org {v_org_cod} não encontrada no cnpj_deParaUnidades.csv", "error")
+                            contadores[1] += 1
+                            salvar_erro_txt(id_v360, f"Org {v_org_cod} não encontrada no cnpj_deParaUnidades.csv")
+                            atualizar_erro_frontend(id_v360, f"Org {v_org_cod} não encontrada no cnpj_deParaUnidades.csv")
+                            salvar_metrica(id_v360, "erro")
+                            logs_raw.append(f"ERRO: {id_v360} - Org {v_org_cod} não encontrada no cnpj_deParaUnidades.csv")
+                            atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                            continue
+                        
+                        if cnpj_tomador.strip() in cnpjs_esperados:
+                            atualizar_log_frontend(f"ID {id_v360} — 👤 Tomador OK ({cnpj_tomador})")
                         else:
-                            atualizar_log_frontend(f"Tomador confere? Não ({cnpj_tomador} vs {cnpj_esperado})", "warning")
+                            atualizar_log_frontend(f"ID {id_v360} — 👤 Tomador divergente (esperado: {v_org_cod}, recebido: {cnpj_tomador})", "warning")
                             contadores[1] += 1
                             salvar_erro_txt(id_v360, "Tomador da medição divergente da organização de compras. Cancele a medição e avise ao solicitante.")
                             atualizar_erro_frontend(id_v360, "Tomador da medição divergente da organização de compras. Cancele a medição e avise ao solicitante.")
@@ -979,7 +1012,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                             atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
                             continue
                     except Exception as e_csv:
-                        atualizar_log_frontend(f"Erro ao verificar CNPJ do tomador: {e_csv}", "error")
+                        atualizar_log_frontend(f"ID {id_v360} — ❌ Erro ao verificar CNPJ do tomador: {e_csv}", "error")
                 
                 v_iva = "ZZ" 
                 csv_path = resource_path(f"config/{v_org_cod}.csv")
@@ -1016,14 +1049,14 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     except:
                         pass
                 else:
-                    atualizar_log_frontend("Síntese não ativou após 5 F8", "warning")
+                    atualizar_log_frontend(f"ID {id_v360} — ⚠️ Síntese do SAP não ativou", "warning")
                     continue
                 
                 # Verifica se o dropdown apareceu
                 try:
                     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "[title*='Variante de seleção']")))
                 except:
-                    atualizar_log_frontend("Dropdown da síntese não apareceu", "warning")
+                    atualizar_log_frontend(f"ID {id_v360} — ⚠️ Dropdown da síntese não apareceu", "warning")
                     continue
 
                 # abrir dropdown
@@ -1066,8 +1099,8 @@ def executar_automacao(ids_processar, nome_perfil=None):
                         msg_inexistente = driver.find_element(By.ID, "M1:46:::0:5-text").text
                         if "Não existem dados para os critérios de seleção" in msg_inexistente:
                             if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
-                                atualizar_log_frontend(f"Aviso: ID {id_v360} - inexistente_sap ({v_org_cod}). Não enviado ao solicitante.", "warning")
-                                atualizar_solicitante_frontend(id_v360, f"inexistente_sap ({v_org_cod}) - Não enviado")
+                                atualizar_log_frontend(f"ID {id_v360} — ⛔ BLOQUEADO: solicitação não encontrada no SAP. Não enviado ao solicitante", "warning")
+                                atualizar_solicitante_frontend(id_v360, f"Solicitação não encontrada no SAP — Não enviado")
                                 contadores[2] += 1
                                 salvar_backup(id_v360, f"inexistente_sap ({v_org_cod}) - NÃO ENVIADO")
                                 salvar_metrica(id_v360, "solicitante")
@@ -1081,7 +1114,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                         pass
                     
                 except:
-                    atualizar_log_frontend(f"Timeout: SAP não respondeu para ID {id_v360}", "warning")
+                    atualizar_log_frontend(f"ID {id_v360} — ⚠️ Timeout: SAP não respondeu", "warning")
                     continue
 
                 # Se chegou aqui, a caixinha apareceu - continua normalmente
@@ -1110,7 +1143,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                         )
                     )
                 except:
-                    atualizar_log_frontend("Timeout: campo hospital não carregou após Transferir", "error")
+                    atualizar_log_frontend(f"ID {id_v360} — ❌ Timeout: campo hospital não carregou", "error")
                     continue
                 
                  # tratamento de erro para verificar se a solicitação espelhou corretamente (hospital correto e como serviço), caso tenha espelhado corretamente, segue o processo normalmente, caso contrário, manda automaticamente para o solicitante no v360.
@@ -1128,19 +1161,30 @@ def executar_automacao(ids_processar, nome_perfil=None):
                         with open(resource_path("config/deParaUnidades.csv"), mode='r', encoding='utf-8') as f:
                             for linha in f:
                                 partes = linha.strip().split(',')
-                                if len(partes) >= 2 and partes[0].strip() == v_org_cod:
+                                if len(partes) >= 2 and partes[0].strip() == cnpj_tomador.strip():
                                     valor_esperado = partes[1].strip()
                                     achou_de_para = True
                                     break
-                                    
-                    if achou_de_para and valor_esperado.upper() == nome_campo.upper():
-                        atualizar_log_frontend(f"Unidade correta? Sim ({nome_campo})")
+                    
+                    # CNPJ não está no de-para → pendência do robô, NÃO envia ao solicitante
+                    if not achou_de_para:
+                        atualizar_log_frontend(f"ID {id_v360} — ❌ ERRO: CNPJ tomador {cnpj_tomador} não encontrado no deParaUnidades.csv", "error")
+                        contadores[1] += 1  # erro
+                        salvar_erro_txt(id_v360, f"CNPJ tomador {cnpj_tomador} não encontrado no deParaUnidades.csv")
+                        atualizar_erro_frontend(id_v360, f"CNPJ tomador {cnpj_tomador} não encontrado no deParaUnidades.csv")
+                        salvar_metrica(id_v360, "erro")
+                        logs_raw.append(f"ERRO: {id_v360} - CNPJ tomador {cnpj_tomador} não encontrado no deParaUnidades.csv")
+                        atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
+                        continue
+                    
+                    if valor_esperado.upper() == nome_campo.upper():
+                        atualizar_log_frontend(f"ID {id_v360} — 🏥 Unidade OK ({nome_campo})")
                     else:
-                        atualizar_log_frontend(f"Unidade correta? Não ({nome_campo})")
+                        atualizar_log_frontend(f"ID {id_v360} — 🏥 Unidade divergente (esperado: {valor_esperado}, recebido: {nome_campo})", "warning")
                         enviar_ao_solicitante(id_v360, "de_para_errado", v_org_cod)
                         continue
                 except Exception as e:
-                    atualizar_log_frontend(f"Erro na leitura da Unidade: {e}", "error")
+                    atualizar_log_frontend(f"ID {id_v360} — ❌ Erro na leitura da Unidade: {e}", "error")
                     continue
 
                 # parte especifica de verificar se é serviço e não material
@@ -1152,13 +1196,13 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     
                     prefixos_validos = ("REPASSE", "SERV.", "PLANO DE SAUDE", "DESPESAS COM SOFTW", "VALE TRANSPORTE OPE", "TAXAS ADMINISTRATIVA", "SERV ALIMENT ADM")
                     if val_cat.startswith(prefixos_validos):
-                        atualizar_log_frontend(f"Serviço correto? Sim ({val_cat})")
+                        atualizar_log_frontend(f"ID {id_v360} — 🛠️ Serviço OK ({val_cat})")
                     else:
-                        atualizar_log_frontend(f"Serviço correto? Não ({val_cat})")
+                        atualizar_log_frontend(f"ID {id_v360} — 🛠️ Serviço divergente ({val_cat})")
                         enviar_ao_solicitante(id_v360, "de_para_errado", v_org_cod)
                         continue
                 except Exception as e:
-                    atualizar_log_frontend(f"Erro na leitura do Serviço: {e}", "error")
+                    atualizar_log_frontend(f"ID {id_v360} — ❌ Erro na leitura do Serviço: {e}", "error")
                     continue
                 
                 # clicar no campo do fornecedor
@@ -1191,8 +1235,8 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     texto_erro = msg_erro_fornecedor.get_attribute("title") or msg_erro_fornecedor.text
                     if "Nenhum valor para esta seleção" in texto_erro:
                         if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
-                            atualizar_log_frontend(f"Aviso: ID {id_v360} - cnpj_sem_cadastro ({v_org_cod}). Não enviado ao solicitante.", "warning")
-                            atualizar_solicitante_frontend(id_v360, f"cnpj_sem_cadastro ({v_org_cod}) - Não enviado")
+                            atualizar_log_frontend(f"ID {id_v360} — ⛔ BLOQUEADO: fornecedor sem cadastro. Não enviado ao solicitante", "warning")
+                            atualizar_solicitante_frontend(id_v360, f"Fornecedor sem cadastro — Não enviado")
                             contadores[2] += 1
                             salvar_backup(id_v360, f"cnpj_sem_cadastro ({v_org_cod}) - NÃO ENVIADO")
                             salvar_metrica(id_v360, "solicitante")
@@ -1204,8 +1248,8 @@ def executar_automacao(ids_processar, nome_perfil=None):
                             continue
                     if "não foi criado para organização de compras" in texto_erro or "não foi criado para a organização de compras" in texto_erro:
                         if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
-                            atualizar_log_frontend(f"Aviso: ID {id_v360} - cnpj_sem_expansao ({v_org_cod}). Não enviado ao solicitante.", "warning")
-                            atualizar_solicitante_frontend(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - Não enviado")
+                            atualizar_log_frontend(f"ID {id_v360} — ⛔ BLOQUEADO: fornecedor não expandido. Não enviado ao solicitante", "warning")
+                            atualizar_solicitante_frontend(id_v360, f"Fornecedor não expandido — Não enviado")
                             contadores[2] += 1
                             salvar_backup(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - NÃO ENVIADO")
                             salvar_metrica(id_v360, "solicitante")
@@ -1219,8 +1263,8 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     texto_body = driver.find_element(By.TAG_NAME, "body").text
                     if "Nenhum valor para esta seleção" in texto_body:
                         if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
-                            atualizar_log_frontend(f"Aviso: ID {id_v360} - cnpj_sem_cadastro ({v_org_cod}). Não enviado ao solicitante.", "warning")
-                            atualizar_solicitante_frontend(id_v360, f"cnpj_sem_cadastro ({v_org_cod}) - Não enviado")
+                            atualizar_log_frontend(f"ID {id_v360} — ⛔ BLOQUEADO: fornecedor sem cadastro. Não enviado ao solicitante", "warning")
+                            atualizar_solicitante_frontend(id_v360, f"Fornecedor sem cadastro — Não enviado")
                             contadores[2] += 1
                             salvar_backup(id_v360, f"cnpj_sem_cadastro ({v_org_cod}) - NÃO ENVIADO")
                             salvar_metrica(id_v360, "solicitante")
@@ -1232,8 +1276,8 @@ def executar_automacao(ids_processar, nome_perfil=None):
                             continue
                     if "não foi criado para a organização de compras" in texto_body:
                         if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
-                            atualizar_log_frontend(f"Aviso: ID {id_v360} - cnpj_sem_expansao ({v_org_cod}). Não enviado ao solicitante.", "warning")
-                            atualizar_solicitante_frontend(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - Não enviado")
+                            atualizar_log_frontend(f"ID {id_v360} — ⛔ BLOQUEADO: fornecedor não expandido. Não enviado ao solicitante", "warning")
+                            atualizar_solicitante_frontend(id_v360, f"Fornecedor não expandido — Não enviado")
                             contadores[2] += 1
                             salvar_backup(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - NÃO ENVIADO")
                             salvar_metrica(id_v360, "solicitante")
@@ -1274,8 +1318,8 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 """)
                 if fornecedor_com_erro:
                     if v_org_cod in ["2301", "2201", "1901", "1801", "1701", "1702", "1703"]:
-                        atualizar_log_frontend(f"Aviso: ID {id_v360} - cnpj_sem_expansao ({v_org_cod}). Não enviado ao solicitante.", "warning")
-                        atualizar_solicitante_frontend(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - Não enviado")
+                        atualizar_log_frontend(f"ID {id_v360} — ⛔ BLOQUEADO: fornecedor não expandido. Não enviado ao solicitante", "warning")
+                        atualizar_solicitante_frontend(id_v360, f"Fornecedor não expandido — Não enviado")
                         contadores[2] += 1
                         salvar_backup(id_v360, f"cnpj_sem_expansao ({v_org_cod}) - NÃO ENVIADO")
                         salvar_metrica(id_v360, "solicitante")
@@ -1302,7 +1346,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                             break
                         except:
                             if tentativa_remessa == 4:
-                                atualizar_log_frontend("Aba Remessa/fatura não abriu corretamente", "warning")
+                                atualizar_log_frontend(f"ID {id_v360} — ⚠️ Aba Remessa/fatura não abriu", "warning")
                                 continue
                 
                 # aguardar o campo de moeda e verificar se está preenchido BRL
@@ -1338,7 +1382,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                         break  # Achou → sai do loop
                 else:
                     # Não achou após 10 tentativas de CTRL+4
-                    atualizar_log_frontend("Aba Condições não apareceu após 10 tentativas", "warning")
+                    atualizar_log_frontend(f"ID {id_v360} — ⚠️ Aba Condições não apareceu após 10 tentativas", "warning")
                     continue  # Pula pro próximo ID
                 time.sleep(1)
                 
@@ -1392,7 +1436,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                         EC.presence_of_element_located((By.ID, "M0:46:1:3:2:1:1[1,42]_c"))
                     )
                 except:
-                    atualizar_log_frontend("Timeout: campo de data não carregou após ENTER", "warning")
+                    atualizar_log_frontend(f"ID {id_v360} — ⚠️ Timeout: campo de data não carregou", "warning")
                 time.sleep(1)
                 # colocar as datas de inicio e fim no pedido (dia da criação do pedido e 30 dias depois)
                 hoje = datetime.now().strftime("%d.%m.%Y")
@@ -1424,7 +1468,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     try:
                         erro_gravacao = driver.find_element(By.XPATH, "//span[contains(text(), 'Gravar documento incorreto')]")
                         if erro_gravacao.is_displayed():
-                            atualizar_log_frontend(f"ID {id_v360} com erro ao criar pedido. Verificar manual", "error")
+                            atualizar_log_frontend(f"ID {id_v360} — ❌ Erro ao criar pedido no SAP. Verificar manualmente.", "error")
                             contadores[1] += 1  # erro
                             salvar_erro_txt(id_v360, "Erro ao gravar documento no SAP")
                             atualizar_erro_frontend(id_v360, "Erro ao gravar documento no SAP")
@@ -1450,9 +1494,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                 
                 # Se encontrou pedido, continua
                 if pedido_gerado:
-                    atualizar_log_frontend(f"Pedido SAP criado: {pedido_gerado}. Atualizando V360...", "info")
-
-                    atualizar_log_frontend("DEBUG: Voltando para V360...")
+                    atualizar_log_frontend(f"ID {id_v360} — 🛒 Pedido SAP criado: {pedido_gerado}")
 
                     # voltar para o v360 para colocar o numero do pedido, categoria avulso e liberar a medição
                     driver.switch_to.window(v360_handle)
@@ -1480,6 +1522,18 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     """
                     driver.execute_script(script_final, pedido_gerado)
                     time.sleep(0.5); time.sleep(0.5); time.sleep(0.5)
+
+                    # DESCE A PÁGINA COM PGDN (até 10x, para ao detectar o select)
+                    for _ in range(15):
+                        try:
+                            # Verifica se o select já está visível/clicável
+                            span_check = driver.find_element(By.CSS_SELECTOR, "[aria-labelledby='select2-acceptance_term_items_attributes_0_cf_tipo_de_pedido-container']")
+                            if span_check.is_displayed():
+                                break
+                        except:
+                            pass
+                        driver.find_element(By.TAG_NAME, "body").send_keys(Keys.PAGE_DOWN)
+                        time.sleep(0.03)
 
                     # selecionar o tipo de pedido como avulso
                     try:
@@ -1531,7 +1585,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                             driver.refresh()
                     
                     if not status_correto:
-                        atualizar_log_frontend(f"[PARCIAL] Pedido {pedido_gerado} criado mas V360 não liberou", "warning")
+                        atualizar_log_frontend(f"ID {id_v360} — ⚠️ Pedido {pedido_gerado} criado, mas V360 não liberou", "warning")
                         contadores[3] += 1  # parcial
                         salvar_backup(id_v360, f"PEDIDO {pedido_gerado} CRIADO - V360 NÃO LIBEROU")
                         salvar_erro_txt(id_v360, f"Pedido {pedido_gerado} criado mas V360 não liberou")
@@ -1564,13 +1618,13 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     salvar_backup(id_v360, pedido_gerado)
                     salvar_metrica(id_v360, "sucesso")
                     tempo_total = (datetime.now() - tempo_inicio).total_seconds()
-                    atualizar_log_frontend(f"✅ ID {id_v360} LIBERADO com pedido {pedido_gerado}!", "success")
+                    atualizar_log_frontend(f"ID {id_v360} — ✅ LIBERADO no V360", "success")
                     atualizar_sucesso_frontend(id_v360, pedido_gerado, tempo_total)
                     atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)                   
 
                 else:
                     if not erro_ja_registrado:  # 999999: so registra se nao foi antes
-                        atualizar_log_frontend(f"Erro não identificado: {id_v360}: Verificar manual", "error")
+                        atualizar_log_frontend(f"ID {id_v360} — ❌ Pedido não localizado após salvar. Verificar manualmente.", "error")
                         contadores[1] += 1  # erro
                         salvar_erro_txt(id_v360, "ALERTA: Pedido não localizado após tentar salvar. Verificar manualmente.")
                         atualizar_erro_frontend(id_v360, "ALERTA: Pedido não localizado após tentar salvar. Verificar manualmente.")
@@ -1579,13 +1633,16 @@ def executar_automacao(ids_processar, nome_perfil=None):
 
             except Exception as e:
                 import traceback
-                atualizar_log_frontend(f"Falha ID {id_v360}: {str(e)[:200]}", "error")
+                atualizar_log_frontend(f"ID {id_v360} — ❌ ERRO: {str(e)[:200]}", "error")
                 contadores[1] += 1  # erro
                 salvar_erro_txt(id_v360, str(e)[:200])
                 atualizar_erro_frontend(id_v360, str(e)[:200])
                 salvar_metrica(id_v360, "erro")
                 atualizar_metricas_frontend(contadores[0], contadores[1], contadores[2], contadores[3], cont_total)
             finally:
+                tempo_total = (datetime.now() - tempo_inicio).total_seconds()
+                atualizar_log_frontend(f"⏱️ Duração: {formatar_duracao(tempo_total)}")
+                
                 if sap_handle:
                     try:
                         driver.switch_to.window(sap_handle)
@@ -1593,6 +1650,7 @@ def executar_automacao(ids_processar, nome_perfil=None):
                     except: pass
                 driver.switch_to.window(v360_handle)
                 
+        atualizar_log_frontend(f"📊 Sessão — ✅ {contadores[0]} OK | ⛔ {contadores[2]} bloqueados | ❌ {contadores[1]} erros | ⚠️ {contadores[3]} parciais")
         atualizar_log_frontend("🎉 PROCESSO FINALIZADO!", "success")
         atualizar_progresso_frontend(len(ids_processar), len(ids_processar))
     except Exception as e:
